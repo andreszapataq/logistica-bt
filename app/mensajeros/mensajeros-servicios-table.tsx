@@ -111,18 +111,14 @@ export function MensajerosServiciosTable() {
     return cumpleFiltroMes && cumpleFiltroPago && cumpleBusquedaGeneral
   })
 
-  // Formatear fecha para mostrar
+  // Formatear fecha para mostrar - SOLUCIÓN CORREGIDA
   const formatearFecha = (fechaStr: string) => {
-    // Crear fecha con la zona horaria de Colombia (UTC-5)
-    const fecha = new Date(fechaStr)
+    // Dividir la fecha ISO en sus componentes
+    const [fechaParte] = fechaStr.split("T")
+    const [año, mes, dia] = fechaParte.split("-").map(Number)
 
-    // Usar toLocaleString con opciones para Colombia
-    return fecha.toLocaleString("es-CO", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      timeZone: "America/Bogota",
-    })
+    // Crear una fecha usando los componentes exactos sin conversión de zona horaria
+    return `${dia.toString().padStart(2, "0")}/${mes.toString().padStart(2, "0")}/${año}`
   }
 
   // Formatear valor para mostrar

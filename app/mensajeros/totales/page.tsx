@@ -44,8 +44,10 @@ export default function TotalesMensajerosPage() {
         if (filtroMes !== "todos") {
           const mes = Number.parseInt(filtroMes)
           serviciosFiltrados = serviciosData.filter((servicio) => {
-            const fecha = new Date(servicio.fecha)
-            return fecha.getMonth() + 1 === mes
+            // Extraer el mes directamente de la cadena de fecha ISO
+            const fechaParte = servicio.fecha.split("T")[0]
+            const [, mesParte] = fechaParte.split("-").map(Number)
+            return mesParte === mes
           })
         }
 
