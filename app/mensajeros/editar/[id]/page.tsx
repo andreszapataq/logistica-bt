@@ -62,11 +62,9 @@ export default function EditarServicioMensajeroPage({ params }: { params: { id: 
         }
 
         if (servicio) {
-          // Formatear fecha para Colombia (UTC-5)
-          const fecha = new Date(servicio.fecha)
-
-          // Obtener fecha en formato YYYY-MM-DD
-          const fechaStr = fecha.toLocaleDateString("en-CA") // en-CA usa formato YYYY-MM-DD
+          // Extraer directamente los componentes de la fecha desde la cadena ISO
+          // para evitar problemas de zona horaria
+          const [fechaParte] = servicio.fecha.split("T")
 
           setFormData({
             id: servicio.id,
@@ -75,7 +73,7 @@ export default function EditarServicioMensajeroPage({ params }: { params: { id: 
             ciudad_origen: servicio.ciudad_origen,
             destino: servicio.destino,
             ciudad_destino: servicio.ciudad_destino,
-            fecha: fechaStr,
+            fecha: fechaParte, // Usar directamente la parte de fecha YYYY-MM-DD
             valor: servicio.valor.toString(),
             observaciones: servicio.observaciones || "",
             pagado: servicio.pagado,

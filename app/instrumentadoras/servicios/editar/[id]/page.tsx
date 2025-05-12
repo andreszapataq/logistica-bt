@@ -62,18 +62,10 @@ export default function EditarServicioPage({ params }: { params: { id: string } 
         }
 
         if (servicio) {
-          // Formatear fecha y hora para Colombia (UTC-5)
-          const fecha = new Date(servicio.fecha)
-
-          // Obtener fecha en formato YYYY-MM-DD
-          const fechaStr = fecha.toLocaleDateString("en-CA") // en-CA usa formato YYYY-MM-DD
-
-          // Obtener hora en formato HH:MM
-          const horaStr = fecha.toLocaleTimeString("es-CO", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          })
+          // Extraer directamente los componentes de la fecha desde la cadena ISO
+          // para evitar problemas de zona horaria
+          const [fechaParte, horaParte] = servicio.fecha.split("T")
+          const horaMinutos = horaParte.substring(0, 5) // Obtener solo HH:MM
 
           setFormData({
             id: servicio.id,
@@ -81,8 +73,8 @@ export default function EditarServicioPage({ params }: { params: { id: string } 
             paciente: servicio.paciente,
             institucion: servicio.institucion,
             ciudad: servicio.ciudad,
-            fecha: fechaStr,
-            hora: horaStr,
+            fecha: fechaParte, // Usar directamente la parte de fecha YYYY-MM-DD
+            hora: horaMinutos,
             valor: servicio.valor.toString(),
             observaciones: servicio.observaciones || "",
             pagado: servicio.pagado,
