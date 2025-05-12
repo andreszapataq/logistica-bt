@@ -1,0 +1,43 @@
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Plus } from "lucide-react"
+import Link from "next/link"
+import { MensajerosServiciosTable } from "./mensajeros-servicios-table"
+import { MensajerosTable } from "./mensajeros-table"
+
+export default function MensajerosPage() {
+  return (
+    <div className="container mx-auto py-8">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">Mensajeros</h1>
+        <div className="flex gap-2">
+          <Link href="/mensajeros/nuevo-mensajero">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Mensajero
+            </Button>
+          </Link>
+          <Link href="/mensajeros/nuevo">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Nuevo Servicio
+            </Button>
+          </Link>
+        </div>
+      </div>
+
+      <Tabs defaultValue="servicios" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsTrigger value="servicios">Servicios</TabsTrigger>
+          <TabsTrigger value="mensajeros">Mensajeros</TabsTrigger>
+        </TabsList>
+        <TabsContent value="servicios">
+          <MensajerosServiciosTable />
+        </TabsContent>
+        <TabsContent value="mensajeros">
+          <MensajerosTable />
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
