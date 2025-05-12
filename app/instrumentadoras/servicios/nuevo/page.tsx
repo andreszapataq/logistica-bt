@@ -1,9 +1,7 @@
 "use client"
 
 import Link from "next/link"
-
 import type React from "react"
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -80,8 +78,12 @@ export default function NuevoServicioPage() {
     try {
       setIsSubmitting(true)
 
-      // Combinar fecha y hora
-      const fechaHora = new Date(`${formData.fecha}T${formData.hora}:00`)
+      // Crear fecha en formato ISO sin manipulación de zona horaria
+      const [year, month, day] = formData.fecha.split("-").map(Number)
+      const [hours, minutes] = formData.hora.split(":").map(Number)
+
+      // Crear fecha directamente con los componentes
+      const fechaISO = `${formData.fecha}T${formData.hora}:00-05:00`
 
       const { data, error } = await supabase
         .from("servicios_instrumentadoras")
@@ -91,7 +93,7 @@ export default function NuevoServicioPage() {
             paciente: formData.paciente,
             institucion: formData.institucion,
             ciudad: formData.ciudad,
-            fecha: fechaHora.toISOString(),
+            fecha: fechaISO,
             valor: Number.parseInt(formData.valor),
             observaciones: formData.observaciones || null,
             pagado: formData.pagado,

@@ -112,13 +112,17 @@ export function ServiciosTable() {
 
   // Formatear fecha para mostrar
   const formatearFecha = (fechaStr: string) => {
+    // Crear fecha con la zona horaria de Colombia (UTC-5)
     const fecha = new Date(fechaStr)
-    return fecha.toLocaleDateString("es-CO", {
+
+    // Usar toLocaleString con opciones para Colombia
+    return fecha.toLocaleString("es-CO", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Bogota",
     })
   }
 

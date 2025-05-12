@@ -2,7 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { InstrumentadorasTable } from "./instrumentadoras-table"
 import { ServiciosTable } from "./servicios-table"
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { BarChart2, Plus } from "lucide-react"
 import Link from "next/link"
 
 export default function InstrumentadorasPage() {
@@ -21,6 +21,12 @@ export default function InstrumentadorasPage() {
             <Button>
               <Plus className="mr-2 h-4 w-4" />
               Nuevo Servicio
+            </Button>
+          </Link>
+          <Link href="/instrumentadoras/totales">
+            <Button variant="outline">
+              <BarChart2 className="mr-2 h-4 w-4" />
+              Ver Totales
             </Button>
           </Link>
         </div>

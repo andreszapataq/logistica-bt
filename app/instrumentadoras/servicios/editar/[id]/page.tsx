@@ -62,10 +62,18 @@ export default function EditarServicioPage({ params }: { params: { id: string } 
         }
 
         if (servicio) {
-          // Formatear fecha y hora
+          // Formatear fecha y hora para Colombia (UTC-5)
           const fecha = new Date(servicio.fecha)
-          const fechaStr = fecha.toISOString().split("T")[0]
-          const horaStr = fecha.toTimeString().slice(0, 5)
+
+          // Obtener fecha en formato YYYY-MM-DD
+          const fechaStr = fecha.toLocaleDateString("en-CA") // en-CA usa formato YYYY-MM-DD
+
+          // Obtener hora en formato HH:MM
+          const horaStr = fecha.toLocaleTimeString("es-CO", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          })
 
           setFormData({
             id: servicio.id,
@@ -121,8 +129,8 @@ export default function EditarServicioPage({ params }: { params: { id: string } 
     try {
       setIsSubmitting(true)
 
-      // Combinar fecha y hora
-      const fechaHora = new Date(`${formData.fecha}T${formData.hora}:00`)
+      // Crear fecha en formato ISO con zona horaria de Colombia
+      const fechaISO = `${formData.fecha}T${formData.hora}:00-05:00`
 
       const { error } = await supabase
         .from("servicios_instrumentadoras")
@@ -131,7 +139,7 @@ export default function EditarServicioPage({ params }: { params: { id: string } 
           paciente: formData.paciente,
           institucion: formData.institucion,
           ciudad: formData.ciudad,
-          fecha: fechaHora.toISOString(),
+          fecha: fechaISO,
           valor: Number.parseInt(formData.valor),
           observaciones: formData.observaciones || null,
           pagado: formData.pagado,

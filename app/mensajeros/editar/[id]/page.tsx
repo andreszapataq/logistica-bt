@@ -62,6 +62,12 @@ export default function EditarServicioMensajeroPage({ params }: { params: { id: 
         }
 
         if (servicio) {
+          // Formatear fecha para Colombia (UTC-5)
+          const fecha = new Date(servicio.fecha)
+
+          // Obtener fecha en formato YYYY-MM-DD
+          const fechaStr = fecha.toLocaleDateString("en-CA") // en-CA usa formato YYYY-MM-DD
+
           setFormData({
             id: servicio.id,
             mensajero_id: servicio.mensajero_id,
@@ -69,7 +75,7 @@ export default function EditarServicioMensajeroPage({ params }: { params: { id: 
             ciudad_origen: servicio.ciudad_origen,
             destino: servicio.destino,
             ciudad_destino: servicio.ciudad_destino,
-            fecha: new Date(servicio.fecha).toISOString().split("T")[0],
+            fecha: fechaStr,
             valor: servicio.valor.toString(),
             observaciones: servicio.observaciones || "",
             pagado: servicio.pagado,
@@ -116,6 +122,9 @@ export default function EditarServicioMensajeroPage({ params }: { params: { id: 
     try {
       setIsSubmitting(true)
 
+      // Crear fecha en formato ISO con zona horaria de Colombia
+      const fechaISO = `${formData.fecha}T12:00:00-05:00`
+
       const { error } = await supabase
         .from("servicios_mensajeros")
         .update({
@@ -124,7 +133,7 @@ export default function EditarServicioMensajeroPage({ params }: { params: { id: 
           ciudad_origen: formData.ciudad_origen,
           destino: formData.destino,
           ciudad_destino: formData.ciudad_destino,
-          fecha: formData.fecha,
+          fecha: fechaISO,
           valor: Number.parseInt(formData.valor),
           observaciones: formData.observaciones || null,
           pagado: formData.pagado,

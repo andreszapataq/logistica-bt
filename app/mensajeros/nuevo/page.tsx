@@ -78,6 +78,9 @@ export default function NuevoServicioMensajeroPage() {
     try {
       setIsSubmitting(true)
 
+      // Crear fecha en formato ISO con zona horaria de Colombia
+      const fechaISO = `${formData.fecha}T12:00:00-05:00`
+
       const { data, error } = await supabase
         .from("servicios_mensajeros")
         .insert([
@@ -87,7 +90,7 @@ export default function NuevoServicioMensajeroPage() {
             ciudad_origen: formData.ciudad_origen,
             destino: formData.destino,
             ciudad_destino: formData.ciudad_destino,
-            fecha: formData.fecha,
+            fecha: fechaISO,
             valor: Number.parseInt(formData.valor),
             observaciones: formData.observaciones || null,
             pagado: formData.pagado,
