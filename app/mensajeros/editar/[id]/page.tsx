@@ -8,20 +8,22 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, use } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { getSupabaseBrowserClient, type Mensajero } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 
-export default function EditarServicioMensajeroPage({ params }: { params: { id: string } }) {
+export default function EditarServicioMensajeroPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params)
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const supabase = getSupabaseBrowserClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [mensajeros, setMensajeros] = useState<Mensajero[]>([])
   const [formData, setFormData] = useState({
-    id: params.id,
+    id: resolvedParams.id,
     mensajero_id: "",
     origen: "",
     ciudad_origen: "",
@@ -54,7 +56,7 @@ export default function EditarServicioMensajeroPage({ params }: { params: { id: 
         const { data: servicio, error: servicioError } = await supabase
           .from("servicios_mensajeros")
           .select("*")
-          .eq("id", params.id)
+          .eq("id", resolvedParams.id)
           .single()
 
         if (servicioError) {
@@ -99,7 +101,7 @@ export default function EditarServicioMensajeroPage({ params }: { params: { id: 
     }
 
     fetchData()
-  }, [params.id, router, toast])
+  }, [resolvedParams.id, router, toast])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -136,7 +138,7 @@ export default function EditarServicioMensajeroPage({ params }: { params: { id: 
           observaciones: formData.observaciones || null,
           pagado: formData.pagado,
         })
-        .eq("id", params.id)
+        .eq("id", resolvedParams.id)
 
       if (error) {
         throw error
@@ -147,7 +149,10 @@ export default function EditarServicioMensajeroPage({ params }: { params: { id: 
         description: "Servicio actualizado correctamente.",
       })
 
-      router.push("/mensajeros")
+      // Preservar los filtros al volver
+      const filters = searchParams.toString()
+      const returnUrl = filters ? `/mensajeros?${filters}` : "/mensajeros"
+      router.push(returnUrl)
       router.refresh()
     } catch (error: any) {
       console.error("Error al actualizar servicio:", error.message)
@@ -293,7 +298,16 @@ export default function EditarServicioMensajeroPage({ params }: { params: { id: 
             </div>
           </CardContent>
           <CardFooter className="flex justify-between">
-            <Button variant="outline" type="button" onClick={() => router.back()} disabled={isSubmitting}>
+            <Button 
+              variant="outline" 
+              type="button" 
+              onClick={() => {
+                const filters = searchParams.toString()
+                const returnUrl = filters ? `/mensajeros?${filters}` : "/mensajeros"
+                router.push(returnUrl)
+              }} 
+              disabled={isSubmitting}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>
