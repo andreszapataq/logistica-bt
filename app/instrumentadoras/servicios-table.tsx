@@ -196,8 +196,9 @@ export function ServiciosTable() {
 
   // Filtrar servicios según los criterios seleccionados
   const serviciosFiltrados = servicios.filter((servicio) => {
-    const fechaServicio = new Date(servicio.fecha)
-    const mesServicio = fechaServicio.getMonth() + 1
+    // Extraer el mes directamente de la fecha ISO string para evitar problemas de zona horaria
+    const fechaISO = servicio.fecha.split('T')[0] // Obtener solo la parte de fecha (YYYY-MM-DD)
+    const mesServicio = Number.parseInt(fechaISO.split('-')[1]) // Extraer el mes (MM)
 
     const cumpleFiltroMes = filtroMes === "todos" || Number.parseInt(filtroMes) === mesServicio
     const cumpleFiltroPago =
