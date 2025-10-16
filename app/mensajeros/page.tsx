@@ -4,6 +4,7 @@ import { BarChart2, Plus } from "lucide-react"
 import Link from "next/link"
 import { MensajerosServiciosTable } from "./mensajeros-servicios-table"
 import { MensajerosTable } from "./mensajeros-table"
+import { Suspense } from "react"
 
 export default function MensajerosPage() {
   return (
@@ -38,7 +39,9 @@ export default function MensajerosPage() {
           <TabsTrigger value="mensajeros">Mensajeros</TabsTrigger>
         </TabsList>
         <TabsContent value="servicios">
-          <MensajerosServiciosTable />
+          <Suspense fallback={<div className="flex justify-center items-center py-8"><p>Cargando servicios...</p></div>}>
+            <MensajerosServiciosTable />
+          </Suspense>
         </TabsContent>
         <TabsContent value="mensajeros">
           <MensajerosTable />

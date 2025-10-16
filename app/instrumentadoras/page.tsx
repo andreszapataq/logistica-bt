@@ -4,6 +4,7 @@ import { ServiciosTable } from "./servicios-table"
 import { Button } from "@/components/ui/button"
 import { BarChart2, Plus } from "lucide-react"
 import Link from "next/link"
+import { Suspense } from "react"
 
 export default function InstrumentadorasPage() {
   return (
@@ -38,7 +39,9 @@ export default function InstrumentadorasPage() {
           <TabsTrigger value="instrumentadoras">Instrumentadoras</TabsTrigger>
         </TabsList>
         <TabsContent value="servicios">
-          <ServiciosTable />
+          <Suspense fallback={<div className="flex justify-center items-center py-8"><p>Cargando servicios...</p></div>}>
+            <ServiciosTable />
+          </Suspense>
         </TabsContent>
         <TabsContent value="instrumentadoras">
           <InstrumentadorasTable />
