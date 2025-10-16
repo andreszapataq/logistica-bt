@@ -9,9 +9,9 @@ export function MainNav() {
   const pathname = usePathname()
 
   return (
-    <div className="mr-4 flex">
-      <Link href="/" className="mr-6 flex items-center space-x-2">
-        <span className="hidden font-bold sm:inline-block">Logística BT</span>
+    <div className="flex items-center space-x-8">
+      <Link href="/" className="flex items-center space-x-2">
+        <span className="font-bold text-lg">Logística BT</span>
       </Link>
       <nav className="flex items-center space-x-6 text-sm font-medium">
         <Link
