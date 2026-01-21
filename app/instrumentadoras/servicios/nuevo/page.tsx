@@ -10,12 +10,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { getSupabaseBrowserClient, type Instrumentadora } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function NuevoServicioPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const supabase = getSupabaseBrowserClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -110,8 +111,9 @@ export default function NuevoServicioPage() {
         description: "Servicio registrado correctamente.",
       })
 
-      // Redirigir a la lista de servicios
-      router.push("/instrumentadoras")
+      // Redirigir a la lista de servicios preservando los filtros
+      const params = searchParams.toString()
+      router.push(`/instrumentadoras${params ? `?${params}` : ''}`)
       router.refresh()
     } catch (error: any) {
       console.error("Error al registrar servicio:", error.message)

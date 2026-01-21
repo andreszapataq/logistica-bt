@@ -9,13 +9,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { getSupabaseBrowserClient, type Mensajero } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
 
 export default function NuevoServicioMensajeroPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const supabase = getSupabaseBrowserClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -107,8 +108,9 @@ export default function NuevoServicioMensajeroPage() {
         description: "Servicio registrado correctamente.",
       })
 
-      // Redirigir a la lista de servicios
-      router.push("/mensajeros")
+      // Redirigir a la lista de servicios preservando los filtros
+      const params = searchParams.toString()
+      router.push(`/mensajeros${params ? `?${params}` : ''}`)
       router.refresh()
     } catch (error: any) {
       console.error("Error al registrar servicio:", error.message)

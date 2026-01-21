@@ -13,12 +13,16 @@ import { getSupabaseBrowserClient, type ServicioMensajero, type Mensajero } from
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { MultiMonthFilter, type MonthYearSelection, getMonthYearDescription, MESES } from "@/components/multi-month-filter"
 
 export function MensajerosServiciosTable() {
   const [servicios, setServicios] = useState<ServicioMensajero[]>([])
   const [mensajeros, setMensajeros] = useState<Mensajero[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtroMes, setFiltroMes] = useState("todos")
+  const [filtroPeriodo, setFiltroPeriodo] = useState<MonthYearSelection>({
+    months: [],
+    year: new Date().getFullYear()
+  })
   const [filtroPago, setFiltroPago] = useState("todos")
   const [filtroMensajero, setFiltroMensajero] = useState("todos")
   const [filtroGeneral, setFiltroGeneral] = useState("")
@@ -31,26 +35,37 @@ export function MensajerosServiciosTable() {
 
   // Leer filtros de la URL al cargar el componente
   useEffect(() => {
-    const mes = searchParams.get('mes') || 'todos'
+    const mesesParam = searchParams.get('meses')
+    const anioParam = searchParams.get('anio')
     const pago = searchParams.get('pago') || 'todos'
     const mensajero = searchParams.get('mensajero') || 'todos'
     const busqueda = searchParams.get('busqueda') || ''
     
-    setFiltroMes(mes)
+    // Parsear meses desde URL (formato: "1,2,3" o vacío para todos)
+    const meses = mesesParam ? mesesParam.split(',').map(Number).filter(n => !isNaN(n)) : []
+    const anio = anioParam === 'todos' ? 'todos' as const : (anioParam ? Number(anioParam) : new Date().getFullYear())
+    
+    setFiltroPeriodo({ months: meses, year: anio })
     setFiltroPago(pago)
     setFiltroMensajero(mensajero)
     setFiltroGeneral(busqueda)
   }, [searchParams])
 
   // Función para actualizar la URL con los filtros
-  const updateURL = (newFiltros: { mes?: string; pago?: string; mensajero?: string; busqueda?: string }) => {
+  const updateURL = (newFiltros: { periodo?: MonthYearSelection; pago?: string; mensajero?: string; busqueda?: string }) => {
     const params = new URLSearchParams(searchParams.toString())
     
-    if (newFiltros.mes !== undefined) {
-      if (newFiltros.mes === 'todos') {
-        params.delete('mes')
+    if (newFiltros.periodo !== undefined) {
+      if (newFiltros.periodo.months.length === 0) {
+        params.delete('meses')
       } else {
-        params.set('mes', newFiltros.mes)
+        params.set('meses', newFiltros.periodo.months.join(','))
+      }
+      
+      if (newFiltros.periodo.year === new Date().getFullYear()) {
+        params.delete('anio')
+      } else {
+        params.set('anio', newFiltros.periodo.year.toString())
       }
     }
     
@@ -161,9 +176,9 @@ export function MensajerosServiciosTable() {
   }
 
   // Manejadores de cambio de filtros que actualizan la URL
-  const handleFiltroMesChange = (value: string) => {
-    setFiltroMes(value)
-    updateURL({ mes: value })
+  const handleFiltroPeriodoChange = (value: MonthYearSelection) => {
+    setFiltroPeriodo(value)
+    updateURL({ periodo: value })
   }
 
   const handleFiltroPagoChange = (value: string) => {
@@ -187,20 +202,26 @@ export function MensajerosServiciosTable() {
   }
 
   const handleClearAllFilters = () => {
-    setFiltroMes("todos")
+    const defaultPeriodo = { months: [], year: new Date().getFullYear() as number | "todos" }
+    setFiltroPeriodo(defaultPeriodo)
     setFiltroPago("todos")
     setFiltroMensajero("todos")
     setFiltroGeneral("")
-    updateURL({ mes: "todos", pago: "todos", mensajero: "todos", busqueda: "" })
+    updateURL({ periodo: defaultPeriodo, pago: "todos", mensajero: "todos", busqueda: "" })
   }
 
   // Filtrar servicios según los criterios seleccionados
   const serviciosFiltrados = servicios.filter((servicio) => {
-    // Extraer el mes directamente de la fecha ISO string para evitar problemas de zona horaria
-    const fechaISO = servicio.fecha.split('T')[0] // Obtener solo la parte de fecha (YYYY-MM-DD)
-    const mesServicio = Number.parseInt(fechaISO.split('-')[1]) // Extraer el mes (MM)
-
-    const cumpleFiltroMes = filtroMes === "todos" || Number.parseInt(filtroMes) === mesServicio
+    // Filtrar por período (año y meses)
+    const fechaISO = servicio.fecha.split('T')[0]
+    const [año, mes] = fechaISO.split('-').map(Number)
+    
+    // Filtrar por año
+    const cumpleFiltroAnio = filtroPeriodo.year === "todos" || año === filtroPeriodo.year
+    
+    // Filtrar por mes (si no hay meses específicos, incluir todos)
+    const cumpleFiltroMes = filtroPeriodo.months.length === 0 || filtroPeriodo.months.includes(mes)
+    
     const cumpleFiltroPago =
       filtroPago === "todos" ||
       (filtroPago === "pagados" && servicio.pagado) ||
@@ -221,17 +242,23 @@ export function MensajerosServiciosTable() {
       servicio.ciudad_destino.toLowerCase().includes(terminoBusqueda) ||
       (servicio.observaciones && servicio.observaciones.toLowerCase().includes(terminoBusqueda))
 
-    return cumpleFiltroMes && cumpleFiltroPago && cumpleFiltroMensajero && cumpleBusquedaGeneral
+    return cumpleFiltroAnio && cumpleFiltroMes && cumpleFiltroPago && cumpleFiltroMensajero && cumpleBusquedaGeneral
   })
 
   // Calcular servicios pendientes filtrados
   const serviciosPendientesFiltrados = serviciosFiltrados.filter(servicio => !servicio.pagado)
   const totalPendiente = serviciosPendientesFiltrados.reduce((sum, servicio) => sum + servicio.valor, 0)
-  const hasActiveFilters = filtroMes !== "todos" || filtroPago !== "todos" || filtroMensajero !== "todos" || filtroGeneral !== ""
+  
+  // Calcular totales generales
+  const totalServicios = serviciosFiltrados.length
+  const totalValor = serviciosFiltrados.reduce((sum, servicio) => sum + servicio.valor, 0)
+  const totalPagado = serviciosFiltrados.filter(s => s.pagado).reduce((sum, s) => sum + s.valor, 0)
+  
+  const hasActiveFilters = filtroPeriodo.months.length > 0 || filtroPeriodo.year !== new Date().getFullYear() || filtroPago !== "todos" || filtroMensajero !== "todos" || filtroGeneral !== ""
   
   // Contar filtros activos para mostrar el botón de limpiar
   const activeFiltersCount = [
-    filtroMes !== "todos",
+    filtroPeriodo.months.length > 0 || filtroPeriodo.year !== new Date().getFullYear(),
     filtroPago !== "todos", 
     filtroMensajero !== "todos",
     filtroGeneral !== ""
@@ -316,31 +343,11 @@ export function MensajerosServiciosTable() {
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-4 mb-6">
-          <div className="grid w-full max-w-sm items-center gap-1.5">
-            <label htmlFor="filtro-mes" className="text-sm font-medium">
-              Filtrar por mes
-            </label>
-            <Select value={filtroMes} onValueChange={handleFiltroMesChange}>
-              <SelectTrigger id="filtro-mes">
-                <SelectValue placeholder="Seleccionar mes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los meses</SelectItem>
-                <SelectItem value="1">Enero</SelectItem>
-                <SelectItem value="2">Febrero</SelectItem>
-                <SelectItem value="3">Marzo</SelectItem>
-                <SelectItem value="4">Abril</SelectItem>
-                <SelectItem value="5">Mayo</SelectItem>
-                <SelectItem value="6">Junio</SelectItem>
-                <SelectItem value="7">Julio</SelectItem>
-                <SelectItem value="8">Agosto</SelectItem>
-                <SelectItem value="9">Septiembre</SelectItem>
-                <SelectItem value="10">Octubre</SelectItem>
-                <SelectItem value="11">Noviembre</SelectItem>
-                <SelectItem value="12">Diciembre</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <MultiMonthFilter
+            value={filtroPeriodo}
+            onChange={handleFiltroPeriodoChange}
+            className="w-full max-w-sm"
+          />
 
           <div className="grid w-full max-w-sm items-center gap-1.5">
             <label htmlFor="filtro-mensajero" className="text-sm font-medium">
@@ -405,6 +412,34 @@ export function MensajerosServiciosTable() {
           </div>
         </div>
 
+        {/* Resumen de totales */}
+        {totalServicios > 0 && (
+          <div className="mb-4 p-4 rounded-lg bg-muted/50 border">
+            <div className="flex flex-wrap gap-6 text-sm">
+              <div>
+                <span className="text-muted-foreground">Período:</span>
+                <span className="ml-2 font-medium">{getMonthYearDescription(filtroPeriodo)}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Servicios:</span>
+                <span className="ml-2 font-medium">{totalServicios}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Total:</span>
+                <span className="ml-2 font-medium">{formatearValor(totalValor)}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Pagado:</span>
+                <span className="ml-2 font-medium text-green-600">{formatearValor(totalPagado)}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Pendiente:</span>
+                <span className="ml-2 font-medium text-orange-600">{formatearValor(totalPendiente)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Botón para limpiar filtros - solo visible cuando hay 2+ filtros activos */}
         {activeFiltersCount >= 2 && (
           <div className="mb-4 flex justify-end">
@@ -446,12 +481,7 @@ export function MensajerosServiciosTable() {
                       {filtroMensajero !== "todos" && (
                         <p><strong>Mensajero:</strong> {mensajeros.find(m => m.id === filtroMensajero)?.nombre}</p>
                       )}
-                      {filtroMes !== "todos" && (
-                        <p><strong>Mes:</strong> {
-                          ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
-                           "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][Number.parseInt(filtroMes) - 1]
-                        }</p>
-                      )}
+                      <p><strong>Período:</strong> {getMonthYearDescription(filtroPeriodo)}</p>
                     </div>
                   </div>
                   <div className="max-h-40 overflow-y-auto">

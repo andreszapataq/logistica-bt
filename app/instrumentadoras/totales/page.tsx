@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
 import { getSupabaseBrowserClient, type Instrumentadora } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
+import { MultiMonthFilter, type MonthYearSelection, getMonthYearDescription } from "@/components/multi-month-filter"
 
 type InstrumentadoraConTotales = Instrumentadora & {
   total_servicios: number
@@ -17,7 +17,10 @@ type InstrumentadoraConTotales = Instrumentadora & {
 export default function TotalesInstrumentadorasPage() {
   const [instrumentadoras, setInstrumentadoras] = useState<InstrumentadoraConTotales[]>([])
   const [loading, setLoading] = useState(true)
-  const [filtroMes, setFiltroMes] = useState("todos")
+  const [filtroPeriodo, setFiltroPeriodo] = useState<MonthYearSelection>({
+    months: [],
+    year: new Date().getFullYear()
+  })
   const { toast } = useToast()
   const supabase = getSupabaseBrowserClient()
 
@@ -41,17 +44,23 @@ export default function TotalesInstrumentadorasPage() {
 
         if (serviciosError) throw serviciosError
 
-        // Filtrar servicios por mes si es necesario
-        let serviciosFiltrados = [...serviciosData]
-        if (filtroMes !== "todos") {
-          const mes = Number.parseInt(filtroMes)
-          serviciosFiltrados = serviciosData.filter((servicio) => {
-            // Extraer el mes directamente de la cadena de fecha ISO
-            const fechaParte = servicio.fecha.split("T")[0]
-            const [, mesParte] = fechaParte.split("-").map(Number)
-            return mesParte === mes
-          })
-        }
+        // Filtrar servicios por período
+        let serviciosFiltrados = serviciosData.filter((servicio) => {
+          const fechaParte = servicio.fecha.split("T")[0]
+          const [año, mes] = fechaParte.split("-").map(Number)
+          
+          // Filtrar por año
+          if (filtroPeriodo.year !== "todos" && año !== filtroPeriodo.year) {
+            return false
+          }
+          
+          // Filtrar por meses (si hay meses específicos seleccionados)
+          if (filtroPeriodo.months.length > 0 && !filtroPeriodo.months.includes(mes)) {
+            return false
+          }
+          
+          return true
+        })
 
         // Calcular totales para cada instrumentadora
         const instrumentadorasConTotales = instrumentadorasData.map((instrumentadora) => {
@@ -89,7 +98,7 @@ export default function TotalesInstrumentadorasPage() {
     }
 
     fetchData()
-  }, [filtroMes, toast])
+  }, [filtroPeriodo, toast])
 
   // Formatear valor para mostrar
   const formatearValor = (valor: number) => {
@@ -100,45 +109,31 @@ export default function TotalesInstrumentadorasPage() {
     }).format(valor)
   }
 
+  // Calcular totales generales
+  const totalesGenerales = {
+    servicios: instrumentadoras.reduce((sum, i) => sum + i.total_servicios, 0),
+    valor: instrumentadoras.reduce((sum, i) => sum + i.total_valor, 0),
+    pagado: instrumentadoras.reduce((sum, i) => sum + i.total_pagado, 0),
+    pendiente: instrumentadoras.reduce((sum, i) => sum + i.total_pendiente, 0),
+  }
+
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold tracking-tight mb-6">Totales por Instrumentadora</h1>
 
       <div className="mb-6">
-        <div className="grid w-full max-w-sm items-center gap-1.5">
-          <label htmlFor="filtro-mes" className="text-sm font-medium">
-            Filtrar por mes
-          </label>
-          <Select value={filtroMes} onValueChange={setFiltroMes}>
-            <SelectTrigger id="filtro-mes">
-              <SelectValue placeholder="Seleccionar mes" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los meses</SelectItem>
-              <SelectItem value="1">Enero</SelectItem>
-              <SelectItem value="2">Febrero</SelectItem>
-              <SelectItem value="3">Marzo</SelectItem>
-              <SelectItem value="4">Abril</SelectItem>
-              <SelectItem value="5">Mayo</SelectItem>
-              <SelectItem value="6">Junio</SelectItem>
-              <SelectItem value="7">Julio</SelectItem>
-              <SelectItem value="8">Agosto</SelectItem>
-              <SelectItem value="9">Septiembre</SelectItem>
-              <SelectItem value="10">Octubre</SelectItem>
-              <SelectItem value="11">Noviembre</SelectItem>
-              <SelectItem value="12">Diciembre</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <MultiMonthFilter
+          value={filtroPeriodo}
+          onChange={setFiltroPeriodo}
+          className="w-full max-w-sm"
+        />
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Resumen de Servicios por Instrumentadora</CardTitle>
           <CardDescription>
-            {filtroMes === "todos"
-              ? "Totales de todos los servicios registrados"
-              : `Totales de servicios del mes ${filtroMes}`}
+            {getMonthYearDescription(filtroPeriodo)}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -151,23 +146,32 @@ export default function TotalesInstrumentadorasPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Instrumentadora</TableHead>
-                  <TableHead>Total Servicios</TableHead>
-                  <TableHead>Valor Total</TableHead>
-                  <TableHead>Pagado</TableHead>
-                  <TableHead>Pendiente</TableHead>
+                  <TableHead className="text-right">Total Servicios</TableHead>
+                  <TableHead className="text-right">Valor Total</TableHead>
+                  <TableHead className="text-right">Pagado</TableHead>
+                  <TableHead className="text-right">Pendiente</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {instrumentadoras.map((instrumentadora) => (
                   <TableRow key={instrumentadora.id}>
                     <TableCell className="font-medium">{instrumentadora.nombre}</TableCell>
-                    <TableCell>{instrumentadora.total_servicios}</TableCell>
-                    <TableCell>{formatearValor(instrumentadora.total_valor)}</TableCell>
-                    <TableCell>{formatearValor(instrumentadora.total_pagado)}</TableCell>
-                    <TableCell>{formatearValor(instrumentadora.total_pendiente)}</TableCell>
+                    <TableCell className="text-right">{instrumentadora.total_servicios}</TableCell>
+                    <TableCell className="text-right">{formatearValor(instrumentadora.total_valor)}</TableCell>
+                    <TableCell className="text-right text-green-600">{formatearValor(instrumentadora.total_pagado)}</TableCell>
+                    <TableCell className="text-right text-orange-600">{formatearValor(instrumentadora.total_pendiente)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
+              <TableFooter>
+                <TableRow className="bg-muted/50 font-semibold">
+                  <TableCell>TOTALES</TableCell>
+                  <TableCell className="text-right">{totalesGenerales.servicios}</TableCell>
+                  <TableCell className="text-right">{formatearValor(totalesGenerales.valor)}</TableCell>
+                  <TableCell className="text-right text-green-600">{formatearValor(totalesGenerales.pagado)}</TableCell>
+                  <TableCell className="text-right text-orange-600">{formatearValor(totalesGenerales.pendiente)}</TableCell>
+                </TableRow>
+              </TableFooter>
             </Table>
           )}
         </CardContent>
