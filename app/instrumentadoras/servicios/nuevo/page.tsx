@@ -9,12 +9,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getSupabaseBrowserClient, type Instrumentadora } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 
-export default function NuevoServicioPage() {
+function NuevoServicioForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
@@ -128,138 +128,145 @@ export default function NuevoServicioPage() {
   }
 
   return (
+    <Card className="max-w-2xl mx-auto">
+      <form onSubmit={handleSubmit}>
+        <CardHeader>
+          <CardTitle>Registrar Servicio</CardTitle>
+          <CardDescription>Ingrese los datos del nuevo servicio de instrumentación quirúrgica</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="instrumentadora">Instrumentadora</Label>
+            <Select
+              onValueChange={(value) => handleSelectChange("instrumentadora_id", value)}
+              value={formData.instrumentadora_id}
+              disabled={loading || instrumentadoras.length === 0}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    loading
+                      ? "Cargando instrumentadoras..."
+                      : instrumentadoras.length === 0
+                        ? "No hay instrumentadoras registradas"
+                        : "Seleccionar instrumentadora"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {instrumentadoras.map((instrumentadora) => (
+                  <SelectItem key={instrumentadora.id} value={instrumentadora.id}>
+                    {instrumentadora.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {instrumentadoras.length === 0 && !loading && (
+              <p className="text-sm text-muted-foreground mt-1">
+                <Link href="/instrumentadoras/nueva" className="text-primary hover:underline">
+                  Registrar una nueva instrumentadora
+                </Link>
+              </p>
+            )}
+          </div>
+
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="paciente">Nombre del paciente</Label>
+            <Input
+              id="paciente"
+              name="paciente"
+              placeholder="Nombre del paciente"
+              value={formData.paciente}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="institucion">Institución</Label>
+            <Input
+              id="institucion"
+              name="institucion"
+              placeholder="Clínica u hospital"
+              value={formData.institucion}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="ciudad">Ciudad</Label>
+            <Input
+              id="ciudad"
+              name="ciudad"
+              placeholder="Ciudad"
+              value={formData.ciudad}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid w-full items-center gap-1.5">
+              <Label htmlFor="fecha">Fecha</Label>
+              <Input id="fecha" name="fecha" type="date" value={formData.fecha} onChange={handleChange} required />
+            </div>
+
+            <div className="grid w-full items-center gap-1.5">
+              <Label htmlFor="hora">Hora</Label>
+              <Input id="hora" name="hora" type="time" value={formData.hora} onChange={handleChange} required />
+            </div>
+          </div>
+
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="valor">Valor del servicio</Label>
+            <Input
+              id="valor"
+              name="valor"
+              type="number"
+              placeholder="Valor en pesos"
+              value={formData.valor}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="grid w-full items-center gap-1.5">
+            <Label htmlFor="observaciones">Observaciones</Label>
+            <Textarea
+              id="observaciones"
+              name="observaciones"
+              placeholder="Observaciones adicionales"
+              value={formData.observaciones}
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch id="pagado" checked={formData.pagado} onCheckedChange={handleSwitchChange} />
+            <Label htmlFor="pagado">Servicio pagado</Label>
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" type="button" onClick={() => router.back()} disabled={isSubmitting}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={isSubmitting || loading || instrumentadoras.length === 0}>
+            {isSubmitting ? "Guardando..." : "Guardar"}
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
+  )
+}
+
+export default function NuevoServicioPage() {
+  return (
     <div className="container mx-auto py-8">
       <h1 className="text-3xl font-bold tracking-tight mb-6">Nuevo Servicio de Instrumentación</h1>
-
-      <Card className="max-w-2xl mx-auto">
-        <form onSubmit={handleSubmit}>
-          <CardHeader>
-            <CardTitle>Registrar Servicio</CardTitle>
-            <CardDescription>Ingrese los datos del nuevo servicio de instrumentación quirúrgica</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="instrumentadora">Instrumentadora</Label>
-              <Select
-                onValueChange={(value) => handleSelectChange("instrumentadora_id", value)}
-                value={formData.instrumentadora_id}
-                disabled={loading || instrumentadoras.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      loading
-                        ? "Cargando instrumentadoras..."
-                        : instrumentadoras.length === 0
-                          ? "No hay instrumentadoras registradas"
-                          : "Seleccionar instrumentadora"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {instrumentadoras.map((instrumentadora) => (
-                    <SelectItem key={instrumentadora.id} value={instrumentadora.id}>
-                      {instrumentadora.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {instrumentadoras.length === 0 && !loading && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  <Link href="/instrumentadoras/nueva" className="text-primary hover:underline">
-                    Registrar una nueva instrumentadora
-                  </Link>
-                </p>
-              )}
-            </div>
-
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="paciente">Nombre del paciente</Label>
-              <Input
-                id="paciente"
-                name="paciente"
-                placeholder="Nombre del paciente"
-                value={formData.paciente}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="institucion">Institución</Label>
-              <Input
-                id="institucion"
-                name="institucion"
-                placeholder="Clínica u hospital"
-                value={formData.institucion}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="ciudad">Ciudad</Label>
-              <Input
-                id="ciudad"
-                name="ciudad"
-                placeholder="Ciudad"
-                value={formData.ciudad}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="fecha">Fecha</Label>
-                <Input id="fecha" name="fecha" type="date" value={formData.fecha} onChange={handleChange} required />
-              </div>
-
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="hora">Hora</Label>
-                <Input id="hora" name="hora" type="time" value={formData.hora} onChange={handleChange} required />
-              </div>
-            </div>
-
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="valor">Valor del servicio</Label>
-              <Input
-                id="valor"
-                name="valor"
-                type="number"
-                placeholder="Valor en pesos"
-                value={formData.valor}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="observaciones">Observaciones</Label>
-              <Textarea
-                id="observaciones"
-                name="observaciones"
-                placeholder="Observaciones adicionales"
-                value={formData.observaciones}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch id="pagado" checked={formData.pagado} onCheckedChange={handleSwitchChange} />
-              <Label htmlFor="pagado">Servicio pagado</Label>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" type="button" onClick={() => router.back()} disabled={isSubmitting}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={isSubmitting || loading || instrumentadoras.length === 0}>
-              {isSubmitting ? "Guardando..." : "Guardar"}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
+      <Suspense fallback={<div className="flex justify-center items-center py-8"><p>Cargando...</p></div>}>
+        <NuevoServicioForm />
+      </Suspense>
     </div>
   )
 }
