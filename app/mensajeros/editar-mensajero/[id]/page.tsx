@@ -5,19 +5,20 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { getSupabaseBrowserClient, type Mensajero } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 
-export default function EditarMensajeroPage({ params }: { params: { id: string } }) {
+export default function EditarMensajeroPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = getSupabaseBrowserClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [formData, setFormData] = useState<Mensajero>({
-    id: params.id,
+    id: resolvedParams.id,
     nombre: "",
     telefono: "",
     email: "",
@@ -28,7 +29,7 @@ export default function EditarMensajeroPage({ params }: { params: { id: string }
     const fetchMensajero = async () => {
       try {
         setIsLoading(true)
-        const { data, error } = await supabase.from("mensajeros").select("*").eq("id", params.id).single()
+        const { data, error } = await supabase.from("mensajeros").select("*").eq("id", resolvedParams.id).single()
 
         if (error) {
           throw error
@@ -57,7 +58,7 @@ export default function EditarMensajeroPage({ params }: { params: { id: string }
     }
 
     fetchMensajero()
-  }, [params.id, router, toast])
+  }, [resolvedParams.id, router, toast])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -78,7 +79,7 @@ export default function EditarMensajeroPage({ params }: { params: { id: string }
           email: formData.email,
           ciudad: formData.ciudad,
         })
-        .eq("id", params.id)
+        .eq("id", resolvedParams.id)
 
       if (error) {
         throw error
@@ -89,7 +90,7 @@ export default function EditarMensajeroPage({ params }: { params: { id: string }
         description: "Mensajero actualizado correctamente.",
       })
 
-      router.push("/mensajeros")
+      router.push("/mensajeros?tab=mensajeros")
       router.refresh()
     } catch (error: any) {
       console.error("Error al actualizar mensajero:", error.message)
@@ -174,7 +175,7 @@ export default function EditarMensajeroPage({ params }: { params: { id: string }
             </div>
           </CardContent>
           <CardFooter className="flex justify-between">
-            <Button variant="outline" type="button" onClick={() => router.back()} disabled={isSubmitting}>
+            <Button variant="outline" type="button" onClick={() => router.push("/mensajeros?tab=mensajeros")} disabled={isSubmitting}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>

@@ -5,19 +5,20 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
 import { getSupabaseBrowserClient, type Instrumentadora } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 
-export default function EditarInstrumentadoraPage({ params }: { params: { id: string } }) {
+export default function EditarInstrumentadoraPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params)
   const router = useRouter()
   const { toast } = useToast()
   const supabase = getSupabaseBrowserClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [formData, setFormData] = useState<Instrumentadora>({
-    id: params.id,
+    id: resolvedParams.id,
     nombre: "",
     telefono: "",
     email: "",
@@ -28,7 +29,7 @@ export default function EditarInstrumentadoraPage({ params }: { params: { id: st
     const fetchInstrumentadora = async () => {
       try {
         setIsLoading(true)
-        const { data, error } = await supabase.from("instrumentadoras").select("*").eq("id", params.id).single()
+        const { data, error } = await supabase.from("instrumentadoras").select("*").eq("id", resolvedParams.id).single()
 
         if (error) {
           throw error
@@ -57,7 +58,7 @@ export default function EditarInstrumentadoraPage({ params }: { params: { id: st
     }
 
     fetchInstrumentadora()
-  }, [params.id, router, toast])
+  }, [resolvedParams.id, router, toast])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -78,7 +79,7 @@ export default function EditarInstrumentadoraPage({ params }: { params: { id: st
           email: formData.email,
           ciudad: formData.ciudad,
         })
-        .eq("id", params.id)
+        .eq("id", resolvedParams.id)
 
       if (error) {
         throw error
@@ -89,7 +90,7 @@ export default function EditarInstrumentadoraPage({ params }: { params: { id: st
         description: "Instrumentadora actualizada correctamente.",
       })
 
-      router.push("/instrumentadoras")
+      router.push("/instrumentadoras?tab=instrumentadoras")
       router.refresh()
     } catch (error: any) {
       console.error("Error al actualizar instrumentadora:", error.message)
@@ -174,7 +175,7 @@ export default function EditarInstrumentadoraPage({ params }: { params: { id: st
             </div>
           </CardContent>
           <CardFooter className="flex justify-between">
-            <Button variant="outline" type="button" onClick={() => router.back()} disabled={isSubmitting}>
+            <Button variant="outline" type="button" onClick={() => router.push("/instrumentadoras?tab=instrumentadoras")} disabled={isSubmitting}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isSubmitting}>

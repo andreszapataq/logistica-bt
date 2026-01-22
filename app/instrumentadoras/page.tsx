@@ -4,7 +4,14 @@ import { ServiciosTable } from "./servicios-table"
 import { ActionButtons } from "@/components/action-buttons"
 import { Suspense } from "react"
 
-export default function InstrumentadorasPage() {
+export default async function InstrumentadorasPage({ 
+  searchParams 
+}: { 
+  searchParams: Promise<{ tab?: string }> 
+}) {
+  const params = await searchParams
+  const activeTab = params.tab || "servicios"
+  
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
@@ -14,7 +21,7 @@ export default function InstrumentadorasPage() {
         </Suspense>
       </div>
 
-      <Tabs defaultValue="servicios" className="w-full">
+      <Tabs defaultValue={activeTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2 mb-8">
           <TabsTrigger value="servicios">Servicios</TabsTrigger>
           <TabsTrigger value="instrumentadoras">Instrumentadoras</TabsTrigger>

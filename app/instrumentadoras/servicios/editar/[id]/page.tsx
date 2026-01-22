@@ -64,10 +64,23 @@ export default function EditarServicioPage({ params }: { params: Promise<{ id: s
         }
 
         if (servicio) {
-          // Extraer directamente los componentes de la fecha desde la cadena ISO
-          // para evitar problemas de zona horaria
-          const [fechaParte, horaParte] = servicio.fecha.split("T")
-          const horaMinutos = horaParte.substring(0, 5) // Obtener solo HH:MM
+          // Convertir la fecha UTC a zona horaria de Colombia
+          const fechaUTC = new Date(servicio.fecha)
+          
+          // Obtener fecha y hora en zona horaria de Colombia (America/Bogota)
+          const fechaColombia = fechaUTC.toLocaleDateString('en-CA', { 
+            timeZone: 'America/Bogota',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }) // Formato: YYYY-MM-DD
+          
+          const horaColombia = fechaUTC.toLocaleTimeString('en-GB', {
+            timeZone: 'America/Bogota',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          }) // Formato: HH:MM
 
           setFormData({
             id: servicio.id,
@@ -75,8 +88,8 @@ export default function EditarServicioPage({ params }: { params: Promise<{ id: s
             paciente: servicio.paciente,
             institucion: servicio.institucion,
             ciudad: servicio.ciudad,
-            fecha: fechaParte, // Usar directamente la parte de fecha YYYY-MM-DD
-            hora: horaMinutos,
+            fecha: fechaColombia,
+            hora: horaColombia,
             valor: servicio.valor.toString(),
             observaciones: servicio.observaciones || "",
             pagado: servicio.pagado,
