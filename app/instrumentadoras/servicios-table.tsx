@@ -122,6 +122,7 @@ export function ServiciosTable() {
             instrumentadora:instrumentadora_id(nombre)
           `)
           .order("fecha", { ascending: false })
+          .order("created_at", { ascending: false })
 
         if (error) {
           throw error
