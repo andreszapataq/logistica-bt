@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Edit, Trash, CheckCircle, DollarSign, X, RotateCcw } from "lucide-react"
+import { Edit, Trash, CheckCircle, DollarSign, X, RotateCcw, FileText } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { getSupabaseBrowserClient, type ServicioMensajero, type Mensajero } from "@/lib/supabase"
+import { getSupabaseBrowserClient, type ServicioMensajero, type Mensajero, type EstadoPago, ESTADOS_PAGO, getEstadoFromServicio } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -23,10 +23,11 @@ export function MensajerosServiciosTable() {
     months: [],
     year: new Date().getFullYear()
   })
-  const [filtroPago, setFiltroPago] = useState("todos")
+  const [filtroEstado, setFiltroEstado] = useState("todos")
   const [filtroMensajero, setFiltroMensajero] = useState("todos")
   const [filtroGeneral, setFiltroGeneral] = useState("")
-  const [isBulkPaying, setIsBulkPaying] = useState(false)
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false)
+  const [showBulkFacturarModal, setShowBulkFacturarModal] = useState(false)
   const [showBulkPayModal, setShowBulkPayModal] = useState(false)
   const { toast } = useToast()
   const supabase = getSupabaseBrowserClient()
@@ -37,7 +38,7 @@ export function MensajerosServiciosTable() {
   useEffect(() => {
     const mesesParam = searchParams.get('meses')
     const anioParam = searchParams.get('anio')
-    const pago = searchParams.get('pago') || 'todos'
+    const estado = searchParams.get('estado') || 'todos'
     const mensajero = searchParams.get('mensajero') || 'todos'
     const busqueda = searchParams.get('busqueda') || ''
     
@@ -46,13 +47,13 @@ export function MensajerosServiciosTable() {
     const anio = anioParam === 'todos' ? 'todos' as const : (anioParam ? Number(anioParam) : new Date().getFullYear())
     
     setFiltroPeriodo({ months: meses, year: anio })
-    setFiltroPago(pago)
+    setFiltroEstado(estado)
     setFiltroMensajero(mensajero)
     setFiltroGeneral(busqueda)
   }, [searchParams])
 
   // Función para actualizar la URL con los filtros
-  const updateURL = (newFiltros: { periodo?: MonthYearSelection; pago?: string; mensajero?: string; busqueda?: string }) => {
+  const updateURL = (newFiltros: { periodo?: MonthYearSelection; estado?: string; mensajero?: string; busqueda?: string }) => {
     const params = new URLSearchParams(searchParams.toString())
     
     if (newFiltros.periodo !== undefined) {
@@ -69,11 +70,11 @@ export function MensajerosServiciosTable() {
       }
     }
     
-    if (newFiltros.pago !== undefined) {
-      if (newFiltros.pago === 'todos') {
-        params.delete('pago')
+    if (newFiltros.estado !== undefined) {
+      if (newFiltros.estado === 'todos') {
+        params.delete('estado')
       } else {
-        params.set('pago', newFiltros.pago)
+        params.set('estado', newFiltros.estado)
       }
     }
     
@@ -182,9 +183,9 @@ export function MensajerosServiciosTable() {
     updateURL({ periodo: value })
   }
 
-  const handleFiltroPagoChange = (value: string) => {
-    setFiltroPago(value)
-    updateURL({ pago: value })
+  const handleFiltroEstadoChange = (value: string) => {
+    setFiltroEstado(value)
+    updateURL({ estado: value })
   }
 
   const handleFiltroMensajeroChange = (value: string) => {
@@ -205,10 +206,10 @@ export function MensajerosServiciosTable() {
   const handleClearAllFilters = () => {
     const defaultPeriodo = { months: [], year: new Date().getFullYear() as number | "todos" }
     setFiltroPeriodo(defaultPeriodo)
-    setFiltroPago("todos")
+    setFiltroEstado("todos")
     setFiltroMensajero("todos")
     setFiltroGeneral("")
-    updateURL({ periodo: defaultPeriodo, pago: "todos", mensajero: "todos", busqueda: "" })
+    updateURL({ periodo: defaultPeriodo, estado: "todos", mensajero: "todos", busqueda: "" })
   }
 
   // Filtrar servicios según los criterios seleccionados
@@ -223,10 +224,9 @@ export function MensajerosServiciosTable() {
     // Filtrar por mes (si no hay meses específicos, incluir todos)
     const cumpleFiltroMes = filtroPeriodo.months.length === 0 || filtroPeriodo.months.includes(mes)
     
-    const cumpleFiltroPago =
-      filtroPago === "todos" ||
-      (filtroPago === "pagados" && servicio.pagado) ||
-      (filtroPago === "pendientes" && !servicio.pagado)
+    const estadoServicio = getEstadoFromServicio(servicio)
+    const cumpleFiltroEstado =
+      filtroEstado === "todos" || estadoServicio === filtroEstado
     
     const cumpleFiltroMensajero = 
       filtroMensajero === "todos" || 
@@ -243,49 +243,51 @@ export function MensajerosServiciosTable() {
       servicio.ciudad_destino.toLowerCase().includes(terminoBusqueda) ||
       (servicio.observaciones && servicio.observaciones.toLowerCase().includes(terminoBusqueda))
 
-    return cumpleFiltroAnio && cumpleFiltroMes && cumpleFiltroPago && cumpleFiltroMensajero && cumpleBusquedaGeneral
+    return cumpleFiltroAnio && cumpleFiltroMes && cumpleFiltroEstado && cumpleFiltroMensajero && cumpleBusquedaGeneral
   })
 
-  // Calcular servicios pendientes filtrados
-  const serviciosPendientesFiltrados = serviciosFiltrados.filter(servicio => !servicio.pagado)
-  const totalPendiente = serviciosPendientesFiltrados.reduce((sum, servicio) => sum + servicio.valor, 0)
+  // Calcular servicios por estado
+  const serviciosPendientes = serviciosFiltrados.filter(s => getEstadoFromServicio(s) === 'pendiente')
+  const serviciosFacturados = serviciosFiltrados.filter(s => getEstadoFromServicio(s) === 'facturado')
+  const serviciosPagados = serviciosFiltrados.filter(s => getEstadoFromServicio(s) === 'pagado')
+  
+  const totalPendiente = serviciosPendientes.reduce((sum, s) => sum + s.valor, 0)
+  const totalFacturado = serviciosFacturados.reduce((sum, s) => sum + s.valor, 0)
+  const totalPagado = serviciosPagados.reduce((sum, s) => sum + s.valor, 0)
   
   // Calcular totales generales
   const totalServicios = serviciosFiltrados.length
   const totalValor = serviciosFiltrados.reduce((sum, servicio) => sum + servicio.valor, 0)
-  const totalPagado = serviciosFiltrados.filter(s => s.pagado).reduce((sum, s) => sum + s.valor, 0)
   
-  const hasActiveFilters = filtroPeriodo.months.length > 0 || filtroPeriodo.year !== new Date().getFullYear() || filtroPago !== "todos" || filtroMensajero !== "todos" || filtroGeneral !== ""
+  const hasActiveFilters = filtroPeriodo.months.length > 0 || filtroPeriodo.year !== new Date().getFullYear() || filtroEstado !== "todos" || filtroMensajero !== "todos" || filtroGeneral !== ""
   
   // Contar filtros activos para mostrar el botón de limpiar
   const activeFiltersCount = [
     filtroPeriodo.months.length > 0 || filtroPeriodo.year !== new Date().getFullYear(),
-    filtroPago !== "todos", 
+    filtroEstado !== "todos", 
     filtroMensajero !== "todos",
     filtroGeneral !== ""
   ].filter(Boolean).length
 
-  // Función para pagar en lote
-  const handleBulkPay = async () => {
-    if (serviciosPendientesFiltrados.length === 0) {
+  // Función para facturar en lote (pendientes -> facturados)
+  const handleBulkFacturar = async () => {
+    if (serviciosPendientes.length === 0) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "No hay servicios pendientes para pagar.",
+        description: "No hay servicios pendientes para facturar.",
       })
       return
     }
 
     try {
-      setIsBulkPaying(true)
+      setIsBulkUpdating(true)
       
-      // Obtener IDs de servicios pendientes
-      const servicioIds = serviciosPendientesFiltrados.map(servicio => servicio.id)
+      const servicioIds = serviciosPendientes.map(servicio => servicio.id)
       
-      // Actualizar todos los servicios a pagado
       const { error } = await supabase
         .from("servicios_mensajeros")
-        .update({ pagado: true })
+        .update({ estado: 'facturado' })
         .in("id", servicioIds)
 
       if (error) {
@@ -295,13 +297,63 @@ export function MensajerosServiciosTable() {
       // Actualizar el estado local
       setServicios(servicios.map(servicio => 
         servicioIds.includes(servicio.id) 
-          ? { ...servicio, pagado: true }
+          ? { ...servicio, estado: 'facturado' as EstadoPago }
           : servicio
       ))
 
       toast({
         title: "Éxito",
-        description: `${serviciosPendientesFiltrados.length} servicios marcados como pagados. Total: ${formatearValor(totalPendiente)}`,
+        description: `${serviciosPendientes.length} servicios marcados como facturados. Total: ${formatearValor(totalPendiente)}`,
+      })
+
+      setShowBulkFacturarModal(false)
+    } catch (error: any) {
+      console.error("Error al facturar en lote:", error.message)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No se pudieron marcar los servicios como facturados. Por favor, intenta de nuevo.",
+      })
+    } finally {
+      setIsBulkUpdating(false)
+    }
+  }
+
+  // Función para pagar en lote (facturados -> pagados)
+  const handleBulkPay = async () => {
+    if (serviciosFacturados.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "No hay servicios facturados para pagar.",
+      })
+      return
+    }
+
+    try {
+      setIsBulkUpdating(true)
+      
+      const servicioIds = serviciosFacturados.map(servicio => servicio.id)
+      
+      const { error } = await supabase
+        .from("servicios_mensajeros")
+        .update({ estado: 'pagado' })
+        .in("id", servicioIds)
+
+      if (error) {
+        throw error
+      }
+
+      // Actualizar el estado local
+      setServicios(servicios.map(servicio => 
+        servicioIds.includes(servicio.id) 
+          ? { ...servicio, estado: 'pagado' as EstadoPago }
+          : servicio
+      ))
+
+      toast({
+        title: "Éxito",
+        description: `${serviciosFacturados.length} servicios marcados como pagados. Total: ${formatearValor(totalFacturado)}`,
       })
 
       setShowBulkPayModal(false)
@@ -313,7 +365,7 @@ export function MensajerosServiciosTable() {
         description: "No se pudieron marcar los servicios como pagados. Por favor, intenta de nuevo.",
       })
     } finally {
-      setIsBulkPaying(false)
+      setIsBulkUpdating(false)
     }
   }
 
@@ -370,17 +422,18 @@ export function MensajerosServiciosTable() {
           </div>
 
           <div className="grid w-full max-w-sm items-center gap-1.5">
-            <label htmlFor="filtro-pago" className="text-sm font-medium">
-              Estado de pago
+            <label htmlFor="filtro-estado" className="text-sm font-medium">
+              Estado
             </label>
-            <Select value={filtroPago} onValueChange={handleFiltroPagoChange}>
-              <SelectTrigger id="filtro-pago">
-                <SelectValue placeholder="Estado de pago" />
+            <Select value={filtroEstado} onValueChange={handleFiltroEstadoChange}>
+              <SelectTrigger id="filtro-estado">
+                <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos</SelectItem>
-                <SelectItem value="pagados">Pagados</SelectItem>
-                <SelectItem value="pendientes">Pendientes</SelectItem>
+                <SelectItem value="todos">Todos los estados</SelectItem>
+                <SelectItem value="pendiente">Pendiente</SelectItem>
+                <SelectItem value="facturado">Facturado</SelectItem>
+                <SelectItem value="pagado">Pagado</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -430,12 +483,16 @@ export function MensajerosServiciosTable() {
                 <span className="ml-2 font-medium">{formatearValor(totalValor)}</span>
               </div>
               <div>
-                <span className="text-muted-foreground">Pagado:</span>
-                <span className="ml-2 font-medium text-green-600">{formatearValor(totalPagado)}</span>
+                <span className="text-muted-foreground">Pendiente:</span>
+                <span className="ml-2 font-medium text-red-600">{formatearValor(totalPendiente)} ({serviciosPendientes.length})</span>
               </div>
               <div>
-                <span className="text-muted-foreground">Pendiente:</span>
-                <span className="ml-2 font-medium text-orange-600">{formatearValor(totalPendiente)}</span>
+                <span className="text-muted-foreground">Facturado:</span>
+                <span className="ml-2 font-medium text-amber-600">{formatearValor(totalFacturado)} ({serviciosFacturados.length})</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Pagado:</span>
+                <span className="ml-2 font-medium text-green-600">{formatearValor(totalPagado)} ({serviciosPagados.length})</span>
               </div>
             </div>
           </div>
@@ -456,78 +513,154 @@ export function MensajerosServiciosTable() {
           </div>
         )}
 
-        {/* Botón de pago en lote - solo visible cuando hay filtros activos */}
-        {hasActiveFilters && serviciosPendientesFiltrados.length > 0 && (
-          <div className="mb-6 flex justify-end">
-            <Dialog open={showBulkPayModal} onOpenChange={setShowBulkPayModal}>
-              <DialogTrigger asChild>
-                <Button className="bg-green-600 hover:bg-green-700">
-                  <DollarSign className="mr-2 h-4 w-4" />
-                  Pagar Todo ({serviciosPendientesFiltrados.length})
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Confirmar Pago en Lote</DialogTitle>
-                  <DialogDescription>
-                    ¿Estás seguro de que quieres marcar como pagados todos los servicios pendientes con los filtros actuales?
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
-                    <h4 className="font-medium mb-2">Resumen del Pago:</h4>
-                    <div className="space-y-1 text-sm">
-                      <p><strong>Servicios a pagar:</strong> {serviciosPendientesFiltrados.length}</p>
-                      <p><strong>Total a pagar:</strong> {formatearValor(totalPendiente)}</p>
-                      {filtroMensajero !== "todos" && (
-                        <p><strong>Mensajero:</strong> {mensajeros.find(m => m.id === filtroMensajero)?.nombre}</p>
-                      )}
-                      <p><strong>Período:</strong> {getMonthYearDescription(filtroPeriodo)}</p>
+        {/* Botones de acción masiva - solo visibles cuando hay filtros activos */}
+        {hasActiveFilters && (serviciosPendientes.length > 0 || serviciosFacturados.length > 0) && (
+          <div className="mb-6 flex justify-end gap-3">
+            {/* Botón para facturar servicios pendientes */}
+            {serviciosPendientes.length > 0 && (
+              <Dialog open={showBulkFacturarModal} onOpenChange={setShowBulkFacturarModal}>
+                <DialogTrigger asChild>
+                  <Button className="bg-amber-500 hover:bg-amber-600">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Marcar Facturado ({serviciosPendientes.length})
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Confirmar Facturación en Lote</DialogTitle>
+                    <DialogDescription>
+                      ¿Estás seguro de que quieres marcar como facturados todos los servicios pendientes? Esto indica que el prestador ya incluyó estos servicios en su factura.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+                      <h4 className="font-medium mb-2">Resumen:</h4>
+                      <div className="space-y-1 text-sm">
+                        <p><strong>Servicios a facturar:</strong> {serviciosPendientes.length}</p>
+                        <p><strong>Total facturado:</strong> {formatearValor(totalPendiente)}</p>
+                        {filtroMensajero !== "todos" && (
+                          <p><strong>Mensajero:</strong> {mensajeros.find(m => m.id === filtroMensajero)?.nombre}</p>
+                        )}
+                        <p><strong>Período:</strong> {getMonthYearDescription(filtroPeriodo)}</p>
+                      </div>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto">
+                      <h4 className="font-medium mb-2 text-sm">Servicios incluidos:</h4>
+                      <div className="space-y-1">
+                        {serviciosPendientes.slice(0, 10).map((servicio) => (
+                          <div key={servicio.id} className="flex justify-between text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded">
+                            <span>{servicio.origen} → {servicio.destino}</span>
+                            <span>{formatearValor(servicio.valor)}</span>
+                          </div>
+                        ))}
+                        {serviciosPendientes.length > 10 && (
+                          <p className="text-xs text-gray-500">... y {serviciosPendientes.length - 10} más</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="max-h-40 overflow-y-auto">
-                    <h4 className="font-medium mb-2 text-sm">Servicios incluidos:</h4>
-                    <div className="space-y-1">
-                      {serviciosPendientesFiltrados.slice(0, 10).map((servicio) => (
-                        <div key={servicio.id} className="flex justify-between text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded">
-                          <span>{servicio.origen} → {servicio.destino}</span>
-                          <span>{formatearValor(servicio.valor)}</span>
-                        </div>
-                      ))}
-                      {serviciosPendientesFiltrados.length > 10 && (
-                        <p className="text-xs text-gray-500">... y {serviciosPendientesFiltrados.length - 10} más</p>
+                  <DialogFooter>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowBulkFacturarModal(false)}
+                      disabled={isBulkUpdating}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={handleBulkFacturar}
+                      disabled={isBulkUpdating}
+                      className="bg-amber-500 hover:bg-amber-600"
+                    >
+                      {isBulkUpdating ? (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4 animate-spin" />
+                          Procesando...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Confirmar Facturación
+                        </>
                       )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
+
+            {/* Botón para pagar servicios facturados */}
+            {serviciosFacturados.length > 0 && (
+              <Dialog open={showBulkPayModal} onOpenChange={setShowBulkPayModal}>
+                <DialogTrigger asChild>
+                  <Button className="bg-green-600 hover:bg-green-700">
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    Pagar Facturados ({serviciosFacturados.length})
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Confirmar Pago en Lote</DialogTitle>
+                    <DialogDescription>
+                      ¿Estás seguro de que quieres marcar como pagados todos los servicios facturados? Esto indica que ya se realizó el pago de la factura.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="rounded-lg bg-gray-50 p-4 dark:bg-gray-800">
+                      <h4 className="font-medium mb-2">Resumen del Pago:</h4>
+                      <div className="space-y-1 text-sm">
+                        <p><strong>Servicios a pagar:</strong> {serviciosFacturados.length}</p>
+                        <p><strong>Total a pagar:</strong> {formatearValor(totalFacturado)}</p>
+                        {filtroMensajero !== "todos" && (
+                          <p><strong>Mensajero:</strong> {mensajeros.find(m => m.id === filtroMensajero)?.nombre}</p>
+                        )}
+                        <p><strong>Período:</strong> {getMonthYearDescription(filtroPeriodo)}</p>
+                      </div>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto">
+                      <h4 className="font-medium mb-2 text-sm">Servicios incluidos:</h4>
+                      <div className="space-y-1">
+                        {serviciosFacturados.slice(0, 10).map((servicio) => (
+                          <div key={servicio.id} className="flex justify-between text-xs bg-gray-100 dark:bg-gray-700 p-2 rounded">
+                            <span>{servicio.origen} → {servicio.destino}</span>
+                            <span>{formatearValor(servicio.valor)}</span>
+                          </div>
+                        ))}
+                        {serviciosFacturados.length > 10 && (
+                          <p className="text-xs text-gray-500">... y {serviciosFacturados.length - 10} más</p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <DialogFooter>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setShowBulkPayModal(false)}
-                    disabled={isBulkPaying}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button 
-                    onClick={handleBulkPay}
-                    disabled={isBulkPaying}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    {isBulkPaying ? (
-                      <>
-                        <CheckCircle className="mr-2 h-4 w-4 animate-spin" />
-                        Procesando...
-                      </>
-                    ) : (
-                      <>
-                        <DollarSign className="mr-2 h-4 w-4" />
-                        Confirmar Pago
-                      </>
-                    )}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                  <DialogFooter>
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowBulkPayModal(false)}
+                      disabled={isBulkUpdating}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button 
+                      onClick={handleBulkPay}
+                      disabled={isBulkUpdating}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {isBulkUpdating ? (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4 animate-spin" />
+                          Procesando...
+                        </>
+                      ) : (
+                        <>
+                          <DollarSign className="mr-2 h-4 w-4" />
+                          Confirmar Pago
+                        </>
+                      )}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         )}
 
@@ -566,8 +699,8 @@ export function MensajerosServiciosTable() {
                   <TableCell>{formatearFecha(servicio.fecha)}</TableCell>
                   <TableCell>{formatearValor(servicio.valor)}</TableCell>
                   <TableCell>
-                    <Badge variant={servicio.pagado ? "success" : "destructive"}>
-                      {servicio.pagado ? "Pagado" : "Pendiente"}
+                    <Badge variant={ESTADOS_PAGO[getEstadoFromServicio(servicio)].color}>
+                      {ESTADOS_PAGO[getEstadoFromServicio(servicio)].label}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">

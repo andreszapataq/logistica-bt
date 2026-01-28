@@ -7,10 +7,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { useState, useEffect, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getSupabaseBrowserClient, type Instrumentadora } from "@/lib/supabase"
+import { getSupabaseBrowserClient, type Instrumentadora, type EstadoPago, ESTADOS_PAGO, getEstadoFromServicio } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function EditarServicioPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,7 +31,7 @@ export default function EditarServicioPage({ params }: { params: Promise<{ id: s
     hora: "",
     valor: "",
     observaciones: "",
-    pagado: false,
+    estado: "pendiente" as EstadoPago,
   })
 
   useEffect(() => {
@@ -92,7 +91,7 @@ export default function EditarServicioPage({ params }: { params: Promise<{ id: s
             hora: horaColombia,
             valor: servicio.valor.toString(),
             observaciones: servicio.observaciones || "",
-            pagado: servicio.pagado,
+            estado: getEstadoFromServicio(servicio),
           })
         } else {
           toast({
@@ -126,8 +125,8 @@ export default function EditarServicioPage({ params }: { params: Promise<{ id: s
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSwitchChange = (checked: boolean) => {
-    setFormData((prev) => ({ ...prev, pagado: checked }))
+  const handleEstadoChange = (value: EstadoPago) => {
+    setFormData((prev) => ({ ...prev, estado: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,7 +148,7 @@ export default function EditarServicioPage({ params }: { params: Promise<{ id: s
           fecha: fechaISO,
           valor: Number.parseInt(formData.valor),
           observaciones: formData.observaciones || null,
-          pagado: formData.pagado,
+          estado: formData.estado,
         })
         .eq("id", resolvedParams.id)
 
@@ -298,9 +297,23 @@ export default function EditarServicioPage({ params }: { params: Promise<{ id: s
               />
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Switch id="pagado" checked={formData.pagado} onCheckedChange={handleSwitchChange} />
-              <Label htmlFor="pagado">Servicio pagado</Label>
+            <div className="grid w-full items-center gap-1.5">
+              <Label htmlFor="estado">Estado del servicio</Label>
+              <Select
+                onValueChange={(value) => handleEstadoChange(value as EstadoPago)}
+                value={formData.estado}
+              >
+                <SelectTrigger id="estado">
+                  <SelectValue placeholder="Seleccionar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(ESTADOS_PAGO) as EstadoPago[]).map((estado) => (
+                    <SelectItem key={estado} value={estado}>
+                      {ESTADOS_PAGO[estado].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
           <CardFooter className="flex justify-between">
