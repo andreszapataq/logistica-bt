@@ -214,9 +214,9 @@ export function ServiciosTable() {
 
   // Filtrar servicios según los criterios seleccionados
   const serviciosFiltrados = servicios.filter((servicio) => {
-    // Filtrar por período (año y meses)
-    const fechaISO = servicio.fecha.split('T')[0]
-    const [año, mes] = fechaISO.split('-').map(Number)
+    // Filtrar por período (año y meses) - Convertir a hora Colombia
+    const fechaColombia = new Date(servicio.fecha).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+    const [año, mes] = fechaColombia.split('-').map(Number)
     
     // Filtrar por año
     const cumpleFiltroAnio = filtroPeriodo.year === "todos" || año === filtroPeriodo.year
@@ -368,14 +368,15 @@ export function ServiciosTable() {
     }
   }
 
-  // Formatear fecha para mostrar - SOLUCIÓN CORREGIDA
+  // Formatear fecha para mostrar - Convertir UTC a hora Colombia
   const formatearFecha = (fechaStr: string) => {
-    // Dividir la fecha ISO en sus componentes
-    const [fechaParte] = fechaStr.split("T")
-    const [año, mes, dia] = fechaParte.split("-").map(Number)
-
-    // Crear una fecha usando los componentes exactos sin conversión de zona horaria
-    return `${dia.toString().padStart(2, "0")}/${mes.toString().padStart(2, "0")}/${año}`
+    const fecha = new Date(fechaStr)
+    return fecha.toLocaleDateString('es-CO', {
+      timeZone: 'America/Bogota',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
   }
 
   // Formatear valor para mostrar

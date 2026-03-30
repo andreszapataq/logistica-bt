@@ -249,8 +249,8 @@ export function filterByMonthYear<T extends { fecha: string }>(
   selection: MonthYearSelection
 ): T[] {
   return items.filter(item => {
-    const fechaISO = item.fecha.split('T')[0]
-    const [año, mes] = fechaISO.split('-').map(Number)
+    const fechaColombia = new Date(item.fecha).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+    const [año, mes] = fechaColombia.split('-').map(Number)
     
     // Filtrar por año
     if (selection.year !== "todos" && año !== selection.year) {
