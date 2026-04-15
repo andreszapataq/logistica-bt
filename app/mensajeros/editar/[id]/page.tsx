@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getSupabaseBrowserClient, type Mensajero, type EstadoPago, ESTADOS_PAGO, getEstadoFromServicio } from "@/lib/supabase"
+import { type Mensajero, type ServicioMensajero, type EstadoPago, ESTADOS_PAGO, getEstadoFromServicio } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function EditarServicioMensajeroPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,7 +18,6 @@ export default function EditarServicioMensajeroPage({ params }: { params: Promis
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [mensajeros, setMensajeros] = useState<Mensajero[]>([])
@@ -40,27 +40,13 @@ export default function EditarServicioMensajeroPage({ params }: { params: Promis
         setIsLoading(true)
 
         // Cargar mensajeros
-        const { data: mensajerosData, error: mensajerosError } = await supabase
-          .from("mensajeros")
-          .select("*")
-          .order("nombre")
-
-        if (mensajerosError) {
-          throw mensajerosError
-        }
-
+        const mensajerosData = await api.get<Mensajero[]>("/api/mensajeros")
         setMensajeros(mensajerosData || [])
 
         // Cargar servicio
-        const { data: servicio, error: servicioError } = await supabase
-          .from("servicios_mensajeros")
-          .select("*")
-          .eq("id", resolvedParams.id)
-          .single()
-
-        if (servicioError) {
-          throw servicioError
-        }
+        const servicio = await api.get<ServicioMensajero>(
+          `/api/servicios-mensajeros/${resolvedParams.id}`
+        )
 
         if (servicio) {
           // Extraer directamente los componentes de la fecha desde la cadena ISO
@@ -121,27 +107,19 @@ export default function EditarServicioMensajeroPage({ params }: { params: Promis
     try {
       setIsSubmitting(true)
 
-      // Crear fecha en formato ISO con zona horaria de Colombia
       const fechaISO = `${formData.fecha}T12:00:00-05:00`
 
-      const { error } = await supabase
-        .from("servicios_mensajeros")
-        .update({
-          mensajero_id: formData.mensajero_id,
-          origen: formData.origen,
-          ciudad_origen: formData.ciudad_origen,
-          destino: formData.destino,
-          ciudad_destino: formData.ciudad_destino,
-          fecha: fechaISO,
-          valor: Number.parseInt(formData.valor),
-          observaciones: formData.observaciones || null,
-          estado: formData.estado,
-        })
-        .eq("id", resolvedParams.id)
-
-      if (error) {
-        throw error
-      }
+      await api.patch(`/api/servicios-mensajeros/${resolvedParams.id}`, {
+        mensajero_id: formData.mensajero_id,
+        origen: formData.origen,
+        ciudad_origen: formData.ciudad_origen,
+        destino: formData.destino,
+        ciudad_destino: formData.ciudad_destino,
+        fecha: fechaISO,
+        valor: Number.parseInt(formData.valor),
+        observaciones: formData.observaciones || null,
+        estado: formData.estado,
+      })
 
       toast({
         title: "Éxito",

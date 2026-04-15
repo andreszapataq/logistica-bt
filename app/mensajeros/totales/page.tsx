@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
-import { getSupabaseBrowserClient, type Mensajero } from "@/lib/supabase"
+import { type Mensajero, type ServicioMensajero } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { MultiMonthFilter, type MonthYearSelection, getMonthYearDescription } from "@/components/multi-month-filter"
 
@@ -22,7 +23,6 @@ export default function TotalesMensajerosPage() {
     year: new Date().getFullYear()
   })
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
     const fetchData = async () => {
@@ -30,17 +30,10 @@ export default function TotalesMensajerosPage() {
         setLoading(true)
 
         // Obtener todos los mensajeros
-        const { data: mensajerosData, error: mensajerosError } = await supabase
-          .from("mensajeros")
-          .select("*")
-          .order("nombre")
-
-        if (mensajerosError) throw mensajerosError
+        const mensajerosData = await api.get<Mensajero[]>("/api/mensajeros")
 
         // Obtener todos los servicios
-        const { data: serviciosData, error: serviciosError } = await supabase.from("servicios_mensajeros").select("*")
-
-        if (serviciosError) throw serviciosError
+        const serviciosData = await api.get<ServicioMensajero[]>("/api/servicios-mensajeros")
 
         // Filtrar servicios por período
         let serviciosFiltrados = serviciosData.filter((servicio) => {
@@ -67,7 +60,7 @@ export default function TotalesMensajerosPage() {
           const total_servicios = serviciosMensajero.length
           const total_valor = serviciosMensajero.reduce((sum, servicio) => sum + servicio.valor, 0)
           const total_pagado = serviciosMensajero
-            .filter((servicio) => servicio.pagado)
+            .filter((servicio) => (servicio as any).pagado)
             .reduce((sum, servicio) => sum + servicio.valor, 0)
           const total_pendiente = total_valor - total_pagado
 

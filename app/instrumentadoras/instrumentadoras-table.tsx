@@ -7,7 +7,8 @@ import { Edit, Trash } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
-import { getSupabaseBrowserClient, type Instrumentadora } from "@/lib/supabase"
+import { type Instrumentadora } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 
 export function InstrumentadorasTable() {
@@ -15,17 +16,12 @@ export function InstrumentadorasTable() {
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState("")
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
     const fetchInstrumentadoras = async () => {
       try {
         setLoading(true)
-        const { data, error } = await supabase.from("instrumentadoras").select("*").order("nombre")
-
-        if (error) {
-          throw error
-        }
+        const data = await api.get<Instrumentadora[]>("/api/instrumentadoras")
 
         setInstrumentadoras(data || [])
       } catch (error: any) {
@@ -46,11 +42,7 @@ export function InstrumentadorasTable() {
   const handleDelete = async (id: string) => {
     if (confirm("¿Está seguro que desea eliminar esta instrumentadora?")) {
       try {
-        const { error } = await supabase.from("instrumentadoras").delete().eq("id", id)
-
-        if (error) {
-          throw error
-        }
+        await api.del(`/api/instrumentadoras/${id}`)
 
         setInstrumentadoras(instrumentadoras.filter((item) => item.id !== id))
         toast({

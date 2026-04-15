@@ -17,25 +17,20 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/components/ui/use-toast"
-import { getSupabaseBrowserClient, type Mensajero } from "@/lib/supabase"
+import { type Mensajero } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 
 export function MensajerosTable() {
   const [mensajeros, setMensajeros] = useState<Mensajero[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState("")
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
     const fetchMensajeros = async () => {
       try {
         setLoading(true)
-        const { data, error } = await supabase.from("mensajeros").select("*").order("nombre")
-
-        if (error) {
-          throw error
-        }
-
+        const data = await api.get<Mensajero[]>("/api/mensajeros")
         setMensajeros(data || [])
       } catch (error: any) {
         console.error("Error al cargar mensajeros:", error.message)
@@ -55,11 +50,7 @@ export function MensajerosTable() {
   const handleDelete = async (id: string) => {
     if (confirm("¿Está seguro que desea eliminar este mensajero?")) {
       try {
-        const { error } = await supabase.from("mensajeros").delete().eq("id", id)
-
-        if (error) {
-          throw error
-        }
+        await api.del(`/api/mensajeros/${id}`)
 
         setMensajeros(mensajeros.filter((mensajero) => mensajero.id !== id))
         toast({

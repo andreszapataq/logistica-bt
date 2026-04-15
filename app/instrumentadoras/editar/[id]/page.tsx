@@ -7,14 +7,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useState, useEffect, use } from "react"
 import { useRouter } from "next/navigation"
-import { getSupabaseBrowserClient, type Instrumentadora } from "@/lib/supabase"
+import { type Instrumentadora } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function EditarInstrumentadoraPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [formData, setFormData] = useState<Instrumentadora>({
@@ -29,11 +29,7 @@ export default function EditarInstrumentadoraPage({ params }: { params: Promise<
     const fetchInstrumentadora = async () => {
       try {
         setIsLoading(true)
-        const { data, error } = await supabase.from("instrumentadoras").select("*").eq("id", resolvedParams.id).single()
-
-        if (error) {
-          throw error
-        }
+        const data = await api.get<Instrumentadora>(`/api/instrumentadoras/${resolvedParams.id}`)
 
         if (data) {
           setFormData(data)
@@ -71,19 +67,12 @@ export default function EditarInstrumentadoraPage({ params }: { params: Promise<
     try {
       setIsSubmitting(true)
 
-      const { error } = await supabase
-        .from("instrumentadoras")
-        .update({
-          nombre: formData.nombre,
-          telefono: formData.telefono,
-          email: formData.email,
-          ciudad: formData.ciudad,
-        })
-        .eq("id", resolvedParams.id)
-
-      if (error) {
-        throw error
-      }
+      await api.patch(`/api/instrumentadoras/${resolvedParams.id}`, {
+        nombre: formData.nombre,
+        telefono: formData.telefono,
+        email: formData.email,
+        ciudad: formData.ciudad,
+      })
 
       toast({
         title: "Éxito",

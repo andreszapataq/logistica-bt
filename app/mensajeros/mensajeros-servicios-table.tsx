@@ -9,7 +9,8 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { getSupabaseBrowserClient, type ServicioMensajero, type Mensajero, type EstadoPago, ESTADOS_PAGO, getEstadoFromServicio } from "@/lib/supabase"
+import { type ServicioMensajero, type Mensajero, type EstadoPago, ESTADOS_PAGO, getEstadoFromServicio } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -30,7 +31,6 @@ export function MensajerosServiciosTable() {
   const [showBulkFacturarModal, setShowBulkFacturarModal] = useState(false)
   const [showBulkPayModal, setShowBulkPayModal] = useState(false)
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -102,32 +102,15 @@ export function MensajerosServiciosTable() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        
+
         // Cargar mensajeros
-        const { data: mensajerosData, error: mensajerosError } = await supabase
-          .from("mensajeros")
-          .select("*")
-          .order("nombre")
-
-        if (mensajerosError) {
-          throw mensajerosError
-        }
-
+        const mensajerosData = await api.get<Mensajero[]>("/api/mensajeros")
         setMensajeros(mensajerosData || [])
 
         // Obtener servicios con el nombre del mensajero
-        const { data, error } = await supabase
-          .from("servicios_mensajeros")
-          .select(`
-            *,
-            mensajero:mensajero_id(nombre)
-          `)
-          .order("fecha", { ascending: false })
-          .order("created_at", { ascending: false })
-
-        if (error) {
-          throw error
-        }
+        const data = await api.get<Array<ServicioMensajero & { mensajero?: { nombre: string } | null }>>(
+          "/api/servicios-mensajeros?join=mensajero"
+        )
 
         // Transformar los datos para tener el nombre del mensajero directamente
         const serviciosFormateados =
@@ -155,11 +138,7 @@ export function MensajerosServiciosTable() {
   const handleDelete = async (id: string) => {
     if (confirm("¿Está seguro que desea eliminar este servicio?")) {
       try {
-        const { error } = await supabase.from("servicios_mensajeros").delete().eq("id", id)
-
-        if (error) {
-          throw error
-        }
+        await api.del(`/api/servicios-mensajeros/${id}`)
 
         setServicios(servicios.filter((item) => item.id !== id))
         toast({
@@ -284,19 +263,12 @@ export function MensajerosServiciosTable() {
       setIsBulkUpdating(true)
       
       const servicioIds = serviciosPendientes.map(servicio => servicio.id)
-      
-      const { error } = await supabase
-        .from("servicios_mensajeros")
-        .update({ estado: 'facturado' })
-        .in("id", servicioIds)
 
-      if (error) {
-        throw error
-      }
+      await api.patch("/api/servicios-mensajeros", { ids: servicioIds, estado: "facturado" })
 
       // Actualizar el estado local
-      setServicios(servicios.map(servicio => 
-        servicioIds.includes(servicio.id) 
+      setServicios(servicios.map(servicio =>
+        servicioIds.includes(servicio.id)
           ? { ...servicio, estado: 'facturado' as EstadoPago }
           : servicio
       ))
@@ -334,19 +306,12 @@ export function MensajerosServiciosTable() {
       setIsBulkUpdating(true)
       
       const servicioIds = serviciosFacturados.map(servicio => servicio.id)
-      
-      const { error } = await supabase
-        .from("servicios_mensajeros")
-        .update({ estado: 'pagado' })
-        .in("id", servicioIds)
 
-      if (error) {
-        throw error
-      }
+      await api.patch("/api/servicios-mensajeros", { ids: servicioIds, estado: "pagado" })
 
       // Actualizar el estado local
-      setServicios(servicios.map(servicio => 
-        servicioIds.includes(servicio.id) 
+      setServicios(servicios.map(servicio =>
+        servicioIds.includes(servicio.id)
           ? { ...servicio, estado: 'pagado' as EstadoPago }
           : servicio
       ))

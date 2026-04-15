@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect, use } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getSupabaseBrowserClient, type Instrumentadora, type EstadoPago, ESTADOS_PAGO, getEstadoFromServicio } from "@/lib/supabase"
+import { type Instrumentadora, type ServicioInstrumentadora, type EstadoPago, ESTADOS_PAGO, getEstadoFromServicio } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function EditarServicioPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,7 +18,6 @@ export default function EditarServicioPage({ params }: { params: Promise<{ id: s
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [instrumentadoras, setInstrumentadoras] = useState<Instrumentadora[]>([])
@@ -40,27 +40,13 @@ export default function EditarServicioPage({ params }: { params: Promise<{ id: s
         setIsLoading(true)
 
         // Cargar instrumentadoras
-        const { data: instrumentadorasData, error: instrumentadorasError } = await supabase
-          .from("instrumentadoras")
-          .select("*")
-          .order("nombre")
-
-        if (instrumentadorasError) {
-          throw instrumentadorasError
-        }
-
+        const instrumentadorasData = await api.get<Instrumentadora[]>("/api/instrumentadoras")
         setInstrumentadoras(instrumentadorasData || [])
 
         // Cargar servicio
-        const { data: servicio, error: servicioError } = await supabase
-          .from("servicios_instrumentadoras")
-          .select("*")
-          .eq("id", resolvedParams.id)
-          .single()
-
-        if (servicioError) {
-          throw servicioError
-        }
+        const servicio = await api.get<ServicioInstrumentadora>(
+          `/api/servicios-instrumentadoras/${resolvedParams.id}`
+        )
 
         if (servicio) {
           // Convertir la fecha UTC a zona horaria de Colombia
@@ -135,26 +121,18 @@ export default function EditarServicioPage({ params }: { params: Promise<{ id: s
     try {
       setIsSubmitting(true)
 
-      // Crear fecha en formato ISO con zona horaria de Colombia
       const fechaISO = `${formData.fecha}T${formData.hora}:00-05:00`
 
-      const { error } = await supabase
-        .from("servicios_instrumentadoras")
-        .update({
-          instrumentadora_id: formData.instrumentadora_id,
-          paciente: formData.paciente,
-          institucion: formData.institucion,
-          ciudad: formData.ciudad,
-          fecha: fechaISO,
-          valor: Number.parseInt(formData.valor),
-          observaciones: formData.observaciones || null,
-          estado: formData.estado,
-        })
-        .eq("id", resolvedParams.id)
-
-      if (error) {
-        throw error
-      }
+      await api.patch(`/api/servicios-instrumentadoras/${resolvedParams.id}`, {
+        instrumentadora_id: formData.instrumentadora_id,
+        paciente: formData.paciente,
+        institucion: formData.institucion,
+        ciudad: formData.ciudad,
+        fecha: fechaISO,
+        valor: Number.parseInt(formData.valor),
+        observaciones: formData.observaciones || null,
+        estado: formData.estado,
+      })
 
       toast({
         title: "Éxito",

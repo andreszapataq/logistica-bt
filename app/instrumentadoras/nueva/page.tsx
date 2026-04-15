@@ -8,13 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { getSupabaseBrowserClient } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 
 export default function NuevaInstrumentadoraPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     nombre: "",
@@ -34,11 +33,7 @@ export default function NuevaInstrumentadoraPage() {
     try {
       setIsSubmitting(true)
 
-      const { data, error } = await supabase.from("instrumentadoras").insert([formData]).select()
-
-      if (error) {
-        throw error
-      }
+      await api.post("/api/instrumentadoras", formData)
 
       toast({
         title: "Éxito",

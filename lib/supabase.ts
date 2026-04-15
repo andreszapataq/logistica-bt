@@ -1,5 +1,3 @@
-import { createClient } from "@supabase/supabase-js"
-
 // Estados de pago para los servicios
 export type EstadoPago = 'pendiente' | 'facturado' | 'pagado'
 
@@ -77,26 +75,3 @@ export type ServicioMensajero = {
   mensajero?: string
 }
 
-// Crear cliente para el lado del servidor
-export const createServerSupabaseClient = () => {
-  const supabaseUrl = process.env.SUPABASE_URL!
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-  return createClient(supabaseUrl, supabaseKey)
-}
-
-// Crear cliente para el lado del cliente
-export const createBrowserSupabaseClient = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  return createClient(supabaseUrl, supabaseKey)
-}
-
-// Singleton para el cliente del navegador
-let browserClient: ReturnType<typeof createBrowserSupabaseClient> | null = null
-
-export const getSupabaseBrowserClient = () => {
-  if (!browserClient) {
-    browserClient = createBrowserSupabaseClient()
-  }
-  return browserClient
-}

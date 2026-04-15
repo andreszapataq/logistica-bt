@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getSupabaseBrowserClient, type Mensajero, type EstadoPago, ESTADOS_PAGO } from "@/lib/supabase"
+import { type Mensajero, type EstadoPago, ESTADOS_PAGO } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import Link from "next/link"
 
@@ -17,7 +18,6 @@ function NuevoServicioMensajeroForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [mensajeros, setMensajeros] = useState<Mensajero[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,12 +37,7 @@ function NuevoServicioMensajeroForm() {
   useEffect(() => {
     const fetchMensajeros = async () => {
       try {
-        const { data, error } = await supabase.from("mensajeros").select("*").order("nombre")
-
-        if (error) {
-          throw error
-        }
-
+        const data = await api.get<Mensajero[]>("/api/mensajeros")
         setMensajeros(data || [])
       } catch (error: any) {
         console.error("Error al cargar mensajeros:", error.message)
@@ -78,29 +73,19 @@ function NuevoServicioMensajeroForm() {
     try {
       setIsSubmitting(true)
 
-      // Crear fecha en formato ISO con zona horaria de Colombia
       const fechaISO = `${formData.fecha}T12:00:00-05:00`
 
-      const { data, error } = await supabase
-        .from("servicios_mensajeros")
-        .insert([
-          {
-            mensajero_id: formData.mensajero_id,
-            origen: formData.origen,
-            ciudad_origen: formData.ciudad_origen,
-            destino: formData.destino,
-            ciudad_destino: formData.ciudad_destino,
-            fecha: fechaISO,
-            valor: Number.parseInt(formData.valor),
-            observaciones: formData.observaciones || null,
-            estado: formData.estado,
-          },
-        ])
-        .select()
-
-      if (error) {
-        throw error
-      }
+      await api.post("/api/servicios-mensajeros", {
+        mensajero_id: formData.mensajero_id,
+        origen: formData.origen,
+        ciudad_origen: formData.ciudad_origen,
+        destino: formData.destino,
+        ciudad_destino: formData.ciudad_destino,
+        fecha: fechaISO,
+        valor: Number.parseInt(formData.valor),
+        observaciones: formData.observaciones || null,
+        estado: formData.estado,
+      })
 
       toast({
         title: "Éxito",

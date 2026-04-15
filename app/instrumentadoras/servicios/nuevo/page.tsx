@@ -10,14 +10,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getSupabaseBrowserClient, type Instrumentadora, type EstadoPago, ESTADOS_PAGO } from "@/lib/supabase"
+import { type Instrumentadora, type EstadoPago, ESTADOS_PAGO } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 
 function NuevoServicioForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [instrumentadoras, setInstrumentadoras] = useState<Instrumentadora[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,12 +37,7 @@ function NuevoServicioForm() {
   useEffect(() => {
     const fetchInstrumentadoras = async () => {
       try {
-        const { data, error } = await supabase.from("instrumentadoras").select("*").order("nombre")
-
-        if (error) {
-          throw error
-        }
-
+        const data = await api.get<Instrumentadora[]>("/api/instrumentadoras")
         setInstrumentadoras(data || [])
       } catch (error: any) {
         console.error("Error al cargar instrumentadoras:", error.message)
@@ -78,32 +73,18 @@ function NuevoServicioForm() {
     try {
       setIsSubmitting(true)
 
-      // Crear fecha en formato ISO sin manipulación de zona horaria
-      const [year, month, day] = formData.fecha.split("-").map(Number)
-      const [hours, minutes] = formData.hora.split(":").map(Number)
-
-      // Crear fecha directamente con los componentes
       const fechaISO = `${formData.fecha}T${formData.hora}:00-05:00`
 
-      const { data, error } = await supabase
-        .from("servicios_instrumentadoras")
-        .insert([
-          {
-            instrumentadora_id: formData.instrumentadora_id,
-            paciente: formData.paciente,
-            institucion: formData.institucion,
-            ciudad: formData.ciudad,
-            fecha: fechaISO,
-            valor: Number.parseInt(formData.valor),
-            observaciones: formData.observaciones || null,
-            estado: formData.estado,
-          },
-        ])
-        .select()
-
-      if (error) {
-        throw error
-      }
+      await api.post("/api/servicios-instrumentadoras", {
+        instrumentadora_id: formData.instrumentadora_id,
+        paciente: formData.paciente,
+        institucion: formData.institucion,
+        ciudad: formData.ciudad,
+        fecha: fechaISO,
+        valor: Number.parseInt(formData.valor),
+        observaciones: formData.observaciones || null,
+        estado: formData.estado,
+      })
 
       toast({
         title: "Éxito",

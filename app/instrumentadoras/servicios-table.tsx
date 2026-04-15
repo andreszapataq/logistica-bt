@@ -9,7 +9,8 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { getSupabaseBrowserClient, type ServicioInstrumentadora, type Instrumentadora, type EstadoPago, ESTADOS_PAGO, getEstadoFromServicio } from "@/lib/supabase"
+import { type ServicioInstrumentadora, type Instrumentadora, type EstadoPago, ESTADOS_PAGO, getEstadoFromServicio } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -30,7 +31,6 @@ export function ServiciosTable() {
   const [showBulkFacturarModal, setShowBulkFacturarModal] = useState(false)
   const [showBulkPayModal, setShowBulkPayModal] = useState(false)
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -102,32 +102,15 @@ export function ServiciosTable() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        
+
         // Cargar instrumentadoras
-        const { data: instrumentadorasData, error: instrumentadorasError } = await supabase
-          .from("instrumentadoras")
-          .select("*")
-          .order("nombre")
-
-        if (instrumentadorasError) {
-          throw instrumentadorasError
-        }
-
+        const instrumentadorasData = await api.get<Instrumentadora[]>("/api/instrumentadoras")
         setInstrumentadoras(instrumentadorasData || [])
 
         // Obtener servicios con el nombre de la instrumentadora
-        const { data, error } = await supabase
-          .from("servicios_instrumentadoras")
-          .select(`
-            *,
-            instrumentadora:instrumentadora_id(nombre)
-          `)
-          .order("fecha", { ascending: false })
-          .order("created_at", { ascending: false })
-
-        if (error) {
-          throw error
-        }
+        const data = await api.get<Array<ServicioInstrumentadora & { instrumentadora?: { nombre: string } | null }>>(
+          "/api/servicios-instrumentadoras?join=instrumentadora"
+        )
 
         // Transformar los datos para tener el nombre de la instrumentadora directamente
         const serviciosFormateados =
@@ -155,11 +138,7 @@ export function ServiciosTable() {
   const handleDelete = async (id: string) => {
     if (confirm("¿Está seguro que desea eliminar este servicio?")) {
       try {
-        const { error } = await supabase.from("servicios_instrumentadoras").delete().eq("id", id)
-
-        if (error) {
-          throw error
-        }
+        await api.del(`/api/servicios-instrumentadoras/${id}`)
 
         setServicios(servicios.filter((item) => item.id !== id))
         toast({
@@ -283,19 +262,12 @@ export function ServiciosTable() {
       setIsBulkUpdating(true)
       
       const servicioIds = serviciosPendientes.map(servicio => servicio.id)
-      
-      const { error } = await supabase
-        .from("servicios_instrumentadoras")
-        .update({ estado: 'facturado' })
-        .in("id", servicioIds)
 
-      if (error) {
-        throw error
-      }
+      await api.patch("/api/servicios-instrumentadoras", { ids: servicioIds, estado: "facturado" })
 
       // Actualizar el estado local
-      setServicios(servicios.map(servicio => 
-        servicioIds.includes(servicio.id) 
+      setServicios(servicios.map(servicio =>
+        servicioIds.includes(servicio.id)
           ? { ...servicio, estado: 'facturado' as EstadoPago }
           : servicio
       ))
@@ -333,19 +305,12 @@ export function ServiciosTable() {
       setIsBulkUpdating(true)
       
       const servicioIds = serviciosFacturados.map(servicio => servicio.id)
-      
-      const { error } = await supabase
-        .from("servicios_instrumentadoras")
-        .update({ estado: 'pagado' })
-        .in("id", servicioIds)
 
-      if (error) {
-        throw error
-      }
+      await api.patch("/api/servicios-instrumentadoras", { ids: servicioIds, estado: "pagado" })
 
       // Actualizar el estado local
-      setServicios(servicios.map(servicio => 
-        servicioIds.includes(servicio.id) 
+      setServicios(servicios.map(servicio =>
+        servicioIds.includes(servicio.id)
           ? { ...servicio, estado: 'pagado' as EstadoPago }
           : servicio
       ))

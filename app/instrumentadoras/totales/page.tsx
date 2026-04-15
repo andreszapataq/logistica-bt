@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table"
-import { getSupabaseBrowserClient, type Instrumentadora } from "@/lib/supabase"
+import { type Instrumentadora, type ServicioInstrumentadora } from "@/lib/supabase"
+import { api } from "@/lib/api-client"
 import { useToast } from "@/components/ui/use-toast"
 import { MultiMonthFilter, type MonthYearSelection, getMonthYearDescription } from "@/components/multi-month-filter"
 
@@ -22,7 +23,6 @@ export default function TotalesInstrumentadorasPage() {
     year: new Date().getFullYear()
   })
   const { toast } = useToast()
-  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
     const fetchData = async () => {
@@ -30,19 +30,12 @@ export default function TotalesInstrumentadorasPage() {
         setLoading(true)
 
         // Obtener todas las instrumentadoras
-        const { data: instrumentadorasData, error: instrumentadorasError } = await supabase
-          .from("instrumentadoras")
-          .select("*")
-          .order("nombre")
-
-        if (instrumentadorasError) throw instrumentadorasError
+        const instrumentadorasData = await api.get<Instrumentadora[]>("/api/instrumentadoras")
 
         // Obtener todos los servicios
-        const { data: serviciosData, error: serviciosError } = await supabase
-          .from("servicios_instrumentadoras")
-          .select("*")
-
-        if (serviciosError) throw serviciosError
+        const serviciosData = await api.get<ServicioInstrumentadora[]>(
+          "/api/servicios-instrumentadoras"
+        )
 
         // Filtrar servicios por período
         let serviciosFiltrados = serviciosData.filter((servicio) => {
@@ -71,7 +64,7 @@ export default function TotalesInstrumentadorasPage() {
           const total_servicios = serviciosInstrumentadora.length
           const total_valor = serviciosInstrumentadora.reduce((sum, servicio) => sum + servicio.valor, 0)
           const total_pagado = serviciosInstrumentadora
-            .filter((servicio) => servicio.pagado)
+            .filter((servicio) => (servicio as any).pagado)
             .reduce((sum, servicio) => sum + servicio.valor, 0)
           const total_pendiente = total_valor - total_pagado
 
